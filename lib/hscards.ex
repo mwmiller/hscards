@@ -127,4 +127,44 @@ defmodule HSCards do
 
     grab({rest, Map.update(deck, key, [card], fn cs -> [card | cs] end)}, which, count - 1)
   end
+
+  @stats_fields [
+    "cardClass",
+    "classes",
+    "rarity",
+    "cost",
+    "health",
+    "attack",
+    "set",
+    "type",
+    "spellSchool",
+    "mechanics"
+  ]
+
+  @doc """
+  Gather fields from the deck into a histogram.
+  The key into the deck structure is defaults to `:maindeck`, but can be set to `:sideboard` as well.
+  """
+  def field_stats(deck, which \\ :maindeck) do
+    # Decks should always be small enough that these multiple passes are not a problem
+    gather_fields(@stats_fields, deck[which], %{})
+  end
+
+  defp gather_fields([], _deck, histo), do: histo
+
+  defp gather_fields([field | rest], cards, histo) do
+    new_histo = Map.merge(histo, %{field => gather_field(field, cards)})
+    gather_fields(rest, cards, new_histo)
+  end
+
+  defp gather_field(field, deck) do
+    deck
+    |> Enum.reduce(%{}, fn card, acc ->
+      case Map.get(card, field) do
+        nil -> acc
+        l when is_list(l) -> Enum.reduce(l, acc, fn e, a -> Map.update(a, e, 1, &(&1 + 1)) end)
+        v -> Map.update(acc, v, 1, &(&1 + 1))
+      end
+    end)
+  end
 end
