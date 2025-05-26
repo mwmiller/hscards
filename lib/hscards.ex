@@ -3,36 +3,19 @@ defmodule HSCards do
   Dealing with Hearthstone cards
   """
 
-  @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
-  @cards_by_dbf Path.join([:code.priv_dir(:hscards), "cards.json"])
-                |> Path.expand()
-                |> File.read!()
-                |> :json.decode()
-                |> Enum.reduce(%{}, fn card, acc ->
-                  Map.put(acc, card["dbfId"], card)
-                end)
   @doc """
   Update the card database with the latest cards from the Hearthstone JSON API.
-
-  Right now the cards are simply stored in the JSON and structured as a list of maps.
+  They are stored in a CubDB database in the `priv` directory of the application.
   """
   def update_cards do
-    with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
-      Path.join([:code.priv_dir(:hscards), "cards.json"]) |> Path.expand() |> File.write!(json)
-      {:ok, "Cards updated successfully."}
-    else
-      err -> {:error, "Failed to fetch cards: #{err}"}
-    end
+    HSCards.DB.network_update()
   end
 
   @doc """
   Get card data by dbfId.
   """
   def by_dbf(dbf_id) do
-    case Map.get(@cards_by_dbf, dbf_id) do
-      nil -> {:error, "Card not found dbfID: #{dbf_id}"}
-      card -> {:ok, card}
-    end
+    HSCards.DB.get(dbf_id)
   end
 
   def deckstring_to_cards(deckstring) do

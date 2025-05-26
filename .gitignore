@@ -21,3 +21,6 @@ hscards-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Don't assume DB is portable, ignore it.
+priv/db
