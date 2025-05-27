@@ -18,7 +18,7 @@ defmodule HSCards do
     HSCards.DB.get(dbf_id)
   end
 
-  def deckstring_to_cards(deckstring) do
+  def from_deckstring(deckstring) do
     deckstring |> Base.decode64!() |> build_deck
   end
 
@@ -125,15 +125,15 @@ defmodule HSCards do
   ]
 
   @doc """
-  Gather fields from the deck into a histogram.
-  The key into the deck structure is defaults to `:maindeck`, but can be set to `:sideboard` as well.
+  Report on distribution of cards.
+  The key into the structure defaults to `:maindeck`
   """
-  def field_stats(deck, which \\ :maindeck) do
+  def deck_stats(cards, which \\ :maindeck) do
     # Decks should always be small enough that these multiple passes are not a problem
-    gather_fields(@stats_fields, deck[which], %{})
+    gather_fields(@stats_fields, cards[which], %{})
   end
 
-  defp gather_fields([], _deck, histo), do: histo
+  defp gather_fields([], _cards, histo), do: histo
 
   defp gather_fields([field | rest], cards, histo) do
     new_histo = Map.merge(histo, %{field => gather_field(field, cards)})
