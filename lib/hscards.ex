@@ -18,22 +18,104 @@ defmodule HSCards do
     HSCards.DB.get(dbf_id)
   end
 
+  # Maps both ways for encode and decode
+  @formats_map [:unknown, :wild, :standard, :classic, :twist]
+               |> Enum.with_index()
+               |> Enum.reduce(%{}, fn {a, i}, acc -> acc |> Map.put(i, a) |> Map.put(a, i) end)
+
+  @doc """
+  Create a deck from a deckstring.
+  """
   def from_deckstring(deckstring) do
     deckstring |> Base.decode64!() |> build_deck
   end
 
-  defp build_deck(<<0, 1, format::integer-size(8), bytes::binary>>) do
-    fa =
-      case format do
-        0 -> :unknown
-        1 -> :wild
-        2 -> :standard
-        3 -> :classic
-        4 -> :twist
-        _ -> :undefined
-      end
+  @doc """
+  Turn a deck into a deckstring.
+  """
+  def to_deckstring(%{format: format, heroes: heroes, maindeck: maindeck} = deck) do
+    {singles, doubles, multiples} = split_by_count(maindeck)
 
-    stack_deck({bytes, %{format: fa}})
+    most =
+      <<0, 1, Map.get(@formats_map, format, :unknown)>>
+      |> add_list(heroes)
+      |> add_list(singles)
+      |> add_list(doubles)
+      |> add_list(multiples)
+
+    # This is the sideboard, which is optional.
+    # I considered using a different function head, but it is simpler here because of the
+    # Base.encode64/1 call at the end.
+    case Map.get(deck, :sideboard) do
+      # Pre-sideboard decks have no sideboard.
+      nil ->
+        most
+
+      # Sideboard codes without an actual sideboard are just a zero byte.
+      [] ->
+        most <> <<0>>
+
+      sb ->
+        {sideboard_singles, sideboard_doubles, sideboard_multiples} =
+          split_by_count(sb)
+
+        (most <> <<1>>)
+        |> add_list(sideboard_singles)
+        |> add_list(sideboard_doubles)
+        |> add_list(sideboard_multiples)
+    end
+    |> Base.encode64()
+  end
+
+  def to_deckstring(_) do
+    {:error, "Invalid deck format"}
+  end
+
+  # This pretty much sucks, but it should be good enough for now.
+  defp split_by_count(list) do
+    Enum.reduce(list, {[], [], []}, fn card, acc ->
+      idx = Map.get(card, "count", 1) - 1
+
+      case idx do
+        0 -> {[card | elem(acc, 0)], acc |> elem(1), acc |> elem(2)}
+        1 -> {acc |> elem(0), [card | elem(acc, 1)], acc |> elem(2)}
+        _ -> {acc |> elem(0), acc |> elem(1), [card | elem(acc, 2)]}
+      end
+    end)
+  end
+
+  defp add_list(curr, list) do
+    encode_list(
+      curr <> Varint.LEB128.encode(length(list)),
+      Enum.sort_by(list, fn e -> e["dbfID"] end)
+    )
+  end
+
+  defp encode_list(curr, []), do: curr
+  # Here, pattern match on the various things to encode properly.
+  # We can certainly see how it was cobbled together.
+  defp encode_list(curr, [%{"dbfId" => dbfId, "owner" => o, "count" => c} | rest]) when c > 2 do
+    encode_list(
+      curr <>
+        Varint.LEB128.encode(dbfId) <> Varint.LEB128.encode(o) <> Varint.LEB128.encode(c),
+      rest
+    )
+  end
+
+  defp encode_list(curr, [%{"dbfId" => dbfId, "owner" => o} | rest]) do
+    encode_list(curr <> Varint.LEB128.encode(dbfId) <> Varint.LEB128.encode(o), rest)
+  end
+
+  defp encode_list(curr, [%{"dbfId" => dbfId, "count" => c} | rest]) when c > 2 do
+    encode_list(curr <> Varint.LEB128.encode(dbfId) <> Varint.LEB128.encode(c), rest)
+  end
+
+  defp encode_list(curr, [%{"dbfId" => dbfId} | rest]) do
+    encode_list(curr <> Varint.LEB128.encode(dbfId), rest)
+  end
+
+  defp build_deck(<<0, 1, format::integer-size(8), bytes::binary>>) do
+    stack_deck({bytes, %{format: Map.get(@formats_map, format, :undefined)}})
   end
 
   defp stack_deck({<<>>, out}), do: out
@@ -55,6 +137,9 @@ defmodule HSCards do
           |> grab({:singles, :sideboard})
           |> grab({:doubles, :sideboard})
           |> grab({:triples, :sideboard})
+
+        {<<0::8>>, deck} ->
+          {<<>>, Map.put(deck, :sideboard, [])}
 
         {other, deck} ->
           {other, deck}
