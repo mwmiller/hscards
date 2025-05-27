@@ -71,6 +71,87 @@ defmodule HSCards do
     {:error, "Invalid deck format"}
   end
 
+  @doc """
+  Produce a markdown representation of a deck.
+  Also accepts a deckstring, which is decoded first.
+  """
+  def to_markdown(deck) when is_binary(deck), do: from_deckstring(deck) |> to_markdown()
+
+  def to_markdown(deck) do
+    mapped_sb = map_sideboard(Map.get(deck, :sideboard, []), %{})
+    sorted_deck = deck.maindeck |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
+
+    md_format(deck.format) <>
+      md_heroes(deck.heroes) <>
+      md_deck(sorted_deck, -1, mapped_sb, "")
+  end
+
+  defp map_sideboard([], acc), do: acc
+
+  defp map_sideboard([card | rest], acc) do
+    map_sideboard(
+      rest,
+      Map.update(acc, card["owner"], [card], fn existing ->
+        [card | existing]
+      end)
+    )
+  end
+
+  defp md_deck([], _cost, _sideboard, curr), do: curr
+
+  defp md_deck([card | rest], prev_cost, sideboard, curr) do
+    cost = card["cost"]
+
+    cost_header =
+      case cost do
+        ^prev_cost ->
+          ""
+
+        _ ->
+          """
+          ---
+          ### Cost: #{cost}
+          ---
+          """
+      end
+
+    base = "- #{card["name"]} (#{card["count"]}x)"
+
+    add_on =
+      case Map.get(sideboard, card["owner"]) do
+        nil ->
+          "\n"
+
+        side_cards ->
+          Enum.reduce(side_cards, ":\n", fn side_card, acc ->
+            acc <> "\t- #{side_card["name"]} (#{side_card["count"]}x) - (#{cost} mana)\n"
+          end)
+      end
+
+    md_deck(rest, cost, sideboard, curr <> cost_header <> base <> add_on)
+  end
+
+  defp md_format(format) when is_atom(format),
+    do: "## Format: #{format |> to_string |> String.capitalize()}\n\n"
+
+  defp md_format(_), do: ""
+
+  defp md_heroes(heroes) when length(heroes) == 1 do
+    [hero] = heroes
+
+    """
+    ## Class: #{hero["cardClass"] |> String.downcase() |> String.capitalize()} - #{hero["name"]}
+
+    """
+  end
+
+  defp md_heroes(heroes) do
+    """
+    ### Classes: #{heroes |> Enum.map(& &1["cardClass"]) |> Enum.join(", ")}
+
+    """
+  end
+
   # This pretty much sucks, but it should be good enough for now.
   defp split_by_count(list) do
     Enum.reduce(list, {[], [], []}, fn card, acc ->
