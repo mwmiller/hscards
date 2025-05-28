@@ -291,9 +291,14 @@ defmodule HSCards do
   ]
 
   @doc """
-  Report on distribution of cards.
+  Report on distribution of cards in a deck.
+  For convenience, it accepts a deck or a deckstring.
   """
-  def deck_stats(deck) do
+  def stats(deck) when is_binary(deck) do
+    deck |> from_deckstring() |> stats()
+  end
+
+  def stats(deck) do
     cards = deck.maindeck ++ Map.get(deck, :sideboard, [])
     # Decks should always be small enough that these multiple passes are not a problem
     gather_fields(@stats_fields, cards, %{})
