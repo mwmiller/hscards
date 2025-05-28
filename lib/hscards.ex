@@ -292,11 +292,11 @@ defmodule HSCards do
 
   @doc """
   Report on distribution of cards.
-  The key into the structure defaults to `:maindeck`
   """
-  def deck_stats(cards, which \\ :maindeck) do
+  def deck_stats(deck) do
+    cards = deck.maindeck ++ Map.get(deck, :sideboard, [])
     # Decks should always be small enough that these multiple passes are not a problem
-    gather_fields(@stats_fields, cards[which], %{})
+    gather_fields(@stats_fields, cards, %{})
   end
 
   defp gather_fields([], _cards, histo), do: histo
