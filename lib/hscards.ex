@@ -82,6 +82,7 @@ defmodule HSCards do
     sorted_deck = deck.maindeck |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
 
     md_format(deck.format) <>
+      md_meta(deck) <>
       md_heroes(deck.heroes) <>
       md_deck(sorted_deck, -1, mapped_sb, "")
   end
@@ -95,6 +96,36 @@ defmodule HSCards do
         [card | existing]
       end)
     )
+  end
+
+  # {craft, disenchant}
+  @crafting %{
+    "COMMON" => {40, 5},
+    "RARE" => {100, 20},
+    "EPIC" => {400, 100},
+    "LEGENDARY" => {1600, 400}
+  }
+
+  defp md_meta(deck) do
+    %{"rarity" => vals} = deck |> stats
+
+    {cost, value} =
+      Enum.reduce(vals, {0, 0}, fn {rarity, count}, acc ->
+        {cost, disenchant} = Map.get(@crafting, rarity, 0)
+        {elem(acc, 0) + cost * count, elem(acc, 1) + disenchant * count}
+      end)
+
+    """
+    ## Create: #{number_sep(cost)} dust
+    ## Disenchant: #{number_sep(value)} dust
+    *Crafting values presume all cards: craftable, disenchantable, non-premium*
+    """
+  end
+
+  defp number_sep(num) when is_integer(num) do
+    num
+    |> Integer.to_string()
+    |> String.replace(~r/(?<=\d)(?=(\d{3})+(?!\d))/, ",")
   end
 
   defp md_deck([], _cost, _sideboard, curr), do: curr
@@ -117,7 +148,19 @@ defmodule HSCards do
 
     base = "- #{card["name"]} (#{card["count"]}x)"
 
-    add_on =
+    earn =
+      case card["howtoEarn"] do
+        nil -> ""
+        howto -> " (#{howto})"
+      end
+
+    earn_golden =
+      case card["howtoEarnGolden"] do
+        nil -> ""
+        howto -> " (Golden: #{howto})"
+      end
+
+    owns =
       case Map.get(sideboard, card["owner"]) do
         nil ->
           "\n"
@@ -128,11 +171,13 @@ defmodule HSCards do
           end)
       end
 
-    md_deck(rest, cost, sideboard, curr <> cost_header <> base <> add_on)
+    md_deck(rest, cost, sideboard, curr <> cost_header <> base <> earn <> earn_golden <> owns)
   end
 
   defp md_format(format) when is_atom(format),
-    do: "## Format: #{format |> to_string |> String.capitalize()}\n\n"
+    do: """
+    ## Format: #{format |> to_string |> String.capitalize()}
+    """
 
   defp md_format(_), do: ""
 
@@ -141,7 +186,6 @@ defmodule HSCards do
 
     """
     ## Class: #{hero["cardClass"] |> String.downcase() |> String.capitalize()} - #{hero["name"]}
-
     """
   end
 
