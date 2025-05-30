@@ -14,16 +14,25 @@ defmodule HSCards.Spark do
   end
 
   def plot(values) when is_list(values) do
-    max = Enum.max(values)
-    min = Enum.min(values)
+    do_plot(Enum.filter(values, fn e -> is_number(e) end))
+  end
 
+  def plot(_), do: {:error, "plot data should be in a list or tuple"}
+
+  defp do_plot(vals) when length(vals) > 2 and length(vals) < 21 do
     plot =
-      values
-      |> Enum.map(fn v -> elem(@height, round((v - min) / (max - min) * 7)) end)
-      |> Enum.join()
+      case {Enum.max(vals), Enum.min(vals)} do
+        {m, m} ->
+          String.duplicate(elem(@height, 3), length(vals))
+
+        {max, min} ->
+          vals
+          |> Enum.map(fn v -> elem(@height, round((v - min) / (max - min) * 7)) end)
+          |> Enum.join()
+      end
 
     {:ok, plot}
   end
 
-  def plot(_), do: {:error, "Input must be a list or tuple of numbers"}
+  defp do_plot(_), do: {:error, "plot data should have between 3 and 20 numbers."}
 end
