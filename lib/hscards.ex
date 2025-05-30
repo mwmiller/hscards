@@ -130,7 +130,7 @@ defmodule HSCards do
       end)
 
     """
-    ## Create / Disenchant (dust): #{number_sep(deck_cost)} / #{number_sep(deck_value)}
+    ## Dust to Create: #{number_sep(deck_cost)} / Disenchant: #{number_sep(deck_value)}
     ## Mana Curve: #{spark}
     """
   end
