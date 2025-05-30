@@ -82,8 +82,8 @@ defmodule HSCards do
     sorted_deck = deck.maindeck |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
 
     md_format(deck.format) <>
-      md_meta(deck) <>
       md_heroes(deck.heroes) <>
+      md_meta(deck) <>
       md_deck(sorted_deck, -1, mapped_sb, "")
   end
 
@@ -107,18 +107,31 @@ defmodule HSCards do
   }
 
   defp md_meta(deck) do
-    %{"rarity" => vals} = deck |> stats
+    %{"rarity" => vals, "cost" => cost} = deck |> stats
 
-    {cost, value} =
+    manas =
+      cost
+      |> Enum.reduce({0, 0, 0, 0, 0, 0, 0, 0}, fn {m, c}, acc ->
+        idx = Enum.min([7, m])
+        prev = elem(acc, idx)
+        acc |> Tuple.delete_at(idx) |> Tuple.insert_at(idx, prev + c)
+      end)
+
+    spark =
+      case HSCards.Spark.plot(manas) do
+        {:ok, spark} -> spark
+        _ -> ""
+      end
+
+    {deck_cost, deck_value} =
       Enum.reduce(vals, {0, 0}, fn {rarity, count}, acc ->
         {cost, disenchant} = Map.get(@crafting, rarity, 0)
         {elem(acc, 0) + cost * count, elem(acc, 1) + disenchant * count}
       end)
 
     """
-    ## Create: #{number_sep(cost)} dust
-    ## Disenchant: #{number_sep(value)} dust
-    *Crafting values presume all cards: craftable, disenchantable, non-premium*
+    ## Create / Disenchant (dust): #{number_sep(deck_cost)} / #{number_sep(deck_value)}
+    ## Mana Curve: #{spark}
     """
   end
 
