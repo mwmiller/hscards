@@ -25,7 +25,7 @@ defmodule HSCardsTest do
 
     # My own deck as she is played.
     fever_dream =
-      "AAEBAafDAyj+DeCsAoO7ApbEAonNAqDOAvLsAtz1ApaKA4KUA86iA5ioA4ixA46xA8i+A/bdA5jeA/jjA4f3A4yBBOiLBIWjBKG2BLrtBP7uBJfvBKWRBZOSBfiWBbiYBZTEBc/2Bbj+Ba//BZueBq+oBsewBsK2Bq+IB9OvBwAAAA=="
+      "AAEBAafDAyj+DeCsAoO7ApbEAonNAqDOAqniAvLsAqH+ApaKA4KUA86iA4ixA46xA8i+A/bdA5jeA/jjA4f3A4yBBOiLBIWjBKG2BLrtBP7uBJfvBKWRBZOSBfiWBbiYBZTEBc/2Bbj+Ba//BZueBr6hBq+oBsewBsK2BtOvBwAAAA=="
 
     assert fever_dream ==
              fever_dream |> HSCards.from_deckstring() |> HSCards.to_deckstring()
