@@ -2,7 +2,7 @@ defmodule HSCards.Spark do
   @moduledoc """
   Spark module for HSCards.
   """
-  @height {"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
+  @height {" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
 
   @doc """
   Generates a sparkline for a given list of values.
@@ -23,11 +23,14 @@ defmodule HSCards.Spark do
     plot =
       case {Enum.max(vals), Enum.min(vals)} do
         {m, m} ->
-          String.duplicate(elem(@height, 3), length(vals))
+          String.duplicate(elem(@height, 4), length(vals))
 
         {max, min} ->
           vals
-          |> Enum.map(fn v -> elem(@height, round((v - min) / (max - min) * 7)) end)
+          |> Enum.map(fn
+            0 -> elem(@height, 0)
+            v -> elem(@height, max(1, round((v - min) / (max - min) * 8)))
+          end)
           |> Enum.join()
       end
 
