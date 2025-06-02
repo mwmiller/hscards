@@ -79,12 +79,16 @@ defmodule HSCards do
 
   def to_markdown(deck) do
     mapped_sb = map_sideboard(Map.get(deck, :sideboard, []), %{})
-    sorted_deck = deck.maindeck |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
+    sorted_deck = card_sort(deck.maindeck)
 
     md_format(deck.format) <>
       md_heroes(deck.heroes) <>
       md_meta(deck) <>
       md_deck(sorted_deck, -1, mapped_sb, "")
+  end
+
+  defp card_sort(list) do
+    list |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
   end
 
   defp map_sideboard([], acc), do: acc
@@ -174,13 +178,17 @@ defmodule HSCards do
       end
 
     owns =
-      case Map.get(sideboard, card["owner"]) do
+      case Map.get(sideboard, card["dbfId"]) do
         nil ->
           "\n"
 
         side_cards ->
-          Enum.reduce(side_cards, ":\n", fn side_card, acc ->
-            acc <> "\t- #{side_card["name"]} (#{side_card["count"]}x) - (#{cost} mana)\n"
+          # We wait until here to sort since we're either
+          # already iterating over the keys or we don't need them
+          side_cards
+          |> card_sort
+          |> Enum.reduce(":\n", fn side_card, acc ->
+            acc <> "  - #{side_card["name"]} (#{side_card["count"]}x #{side_card["cost"]} mana)\n"
           end)
       end
 
