@@ -5,17 +5,23 @@ defmodule HSCards do
 
   @doc """
   Update the card database with the latest cards from the Hearthstone JSON API.
-  They are stored in a CubDB database in the `priv` directory of the application.
+  They are stored in an SQLite database in priv
   """
-  def update_cards do
-    HSCards.DB.network_update()
+  def sync_to_latest_db do
+    HSCards.DB.update_from_sources()
   end
 
   @doc """
   Get card data by dbfId.
   """
   def by_dbf(dbf_id) do
-    HSCards.DB.get(dbf_id)
+    case HSCards.DB.get_by_id(dbf_id) do
+      nil ->
+        {:error, "Card with dbfId #{dbf_id} not found"}
+
+      %{full_info: fi} ->
+        {:ok, fi}
+    end
   end
 
   # Maps both ways for encode and decode
