@@ -1,21 +1,27 @@
-# Hscards
+# HSCards
 
-**TODO: Add description**
+Functions to deal wiith Hearthstone cards.
 
-## Installation
+The SQLite database can be configured from inside your config.ex file.
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `hscards` to your list of dependencies in `mix.exs`:
+```
+config :hscards,
+  ecto_repos: [HSCards.Repo]
 
-```elixir
-def deps do
-  [
-    {:hscards, "~> 0.1.0"}
-  ]
-end
+config :hscards, HSCards.Repo, database: "priv/db/hscards.db"
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/hscards>.
+After that, you can create and run the migrations:
+
+```
+mix ecto.create
+mix ecto.migrate
+```
+
+You can then use the functions in the `HSCards` module to interact with the database.
+Loading the cards from the database can be done with:
+
+```elixir
+HSCards.sync_to_latest_db()
+```
 
