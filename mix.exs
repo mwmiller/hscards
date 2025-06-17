@@ -21,6 +21,11 @@ defmodule HSCards.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [{:cubdb, "~> 2.0"}, {:varint, "~> 1.5"}, {:ex_doc, "~> 0.30", only: :dev, runtime: false}]
+    [
+      {:ecto_sqlite3, "~> 0.19.0"},
+      {:cubdb, "~> 2.0"},
+      {:varint, "~> 1.5"},
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false}
+    ]
   end
 end
