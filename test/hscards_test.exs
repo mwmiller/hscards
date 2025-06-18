@@ -41,4 +41,13 @@ defmodule HSCardsTest do
     assert "rainbow" == HSCards.rune_cost_string(%{"blood" => 1, "frost" => 1, "unholy" => 1})
     assert "invalid" == HSCards.rune_cost_string(%{"blood" => 1, "frost" => 1, "unholy" => 2})
   end
+
+  test "by_name" do
+    assert {:ok, %{"name" => "Keymaster Alabaster"}} = HSCards.by_name("Alabaster")
+
+    assert {:ambiguous, cards} = HSCards.by_name("benedictus")
+    assert length(cards) == 4
+
+    assert {:error, _} = HSCards.by_name("Nonexistent Card")
+  end
 end

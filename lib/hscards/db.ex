@@ -3,10 +3,45 @@ defmodule HSCards.DB do
   Dealing with Hearthstone cards database
   """
 
+  import Ecto.Query, only: [from: 2]
   require Logger
 
   def get_by_id(dbf_id) do
     HSCards.Repo.get_by(HSCard, dbfId: dbf_id)
+  end
+
+  @doc """
+  Get a card by its name.
+  Tries a direct match first, then falls back to a fuzzy search if no exact match is found.
+  Returns `{:ok, card}` if found, `{:ambiguous, cards}` if multiple cards match,
+  or `{:error, error_message}` if no matches are found.
+  """
+  def get_by_name(name) do
+    case HSCards.Repo.all(
+           from(c in HSCard,
+             where: c.name == ^name,
+             select: c.full_info
+           )
+         ) do
+      [] -> get_by_name_fuzzy(name)
+      [card] -> {:ok, card}
+      cards -> {:ambiguous, cards}
+    end
+  end
+
+  defp get_by_name_fuzzy(name) do
+    like = "%#{name}%"
+
+    case HSCards.Repo.all(
+           from(c in HSCard,
+             where: like(c.name, ^like),
+             select: c.full_info
+           )
+         ) do
+      [] -> {:error, "No cards found with name containing '#{name}'"}
+      [card] -> {:ok, card}
+      cards -> {:ambiguous, cards}
+    end
   end
 
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"

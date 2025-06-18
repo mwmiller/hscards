@@ -24,6 +24,19 @@ defmodule HSCards do
     end
   end
 
+  @doc """
+  Get card data by name.
+  """
+  def by_name(name) do
+    case HSCards.DB.get_by_name(name) do
+      {:ok, %{full_info: fi}} ->
+        {:ok, fi}
+
+      other ->
+        other
+    end
+  end
+
   # Maps both ways for encode and decode
   @formats_map [:unknown, :wild, :standard, :classic, :twist]
                |> Enum.with_index()
