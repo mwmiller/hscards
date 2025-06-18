@@ -30,4 +30,15 @@ defmodule HSCardsTest do
     assert fever_dream ==
              fever_dream |> HSCards.from_deckstring() |> HSCards.to_deckstring()
   end
+
+  test "rune cost strings" do
+    assert "tri-blood" == HSCards.rune_cost_string(%{"blood" => 3, "frost" => 0, "unholy" => 0})
+    assert "tri-frost" == HSCards.rune_cost_string(%{"blood" => 0, "frost" => 3})
+    assert "tri-unholy" == HSCards.rune_cost_string(%{"unholy" => 3})
+    assert "BB" == HSCards.rune_cost_string(%{"blood" => 2})
+    assert "F" == HSCards.rune_cost_string(%{"frost" => 1})
+    assert "UUF" == HSCards.rune_cost_string(%{"unholy" => 2, "frost" => 1})
+    assert "rainbow" == HSCards.rune_cost_string(%{"blood" => 1, "frost" => 1, "unholy" => 1})
+    assert "invalid" == HSCards.rune_cost_string(%{"blood" => 1, "frost" => 1, "unholy" => 2})
+  end
 end

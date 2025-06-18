@@ -118,6 +118,7 @@ defmodule HSCards do
 
   defp md_meta(deck) do
     %{"rarity" => vals, "cost" => cost} = deck |> stats
+    deck_rcs = deck_rcs(deck)
 
     manas =
       cost
@@ -142,6 +143,7 @@ defmodule HSCards do
     """
     ## Dust to Create: #{number_sep(deck_cost)} / Disenchant: #{number_sep(deck_value)}
     ## Mana Curve: #{spark}
+    #{deck_rcs}
     """
   end
 
@@ -169,7 +171,7 @@ defmodule HSCards do
           """
       end
 
-    base = "- #{card["name"]} (#{card["count"]}x)"
+    base = "- #{card_rcs(card)}#{card["name"]} (#{card["count"]}x)"
 
     earn =
       case card["howtoEarn"] do
@@ -194,7 +196,8 @@ defmodule HSCards do
           side_cards
           |> card_sort
           |> Enum.reduce(":\n", fn side_card, acc ->
-            acc <> "  - #{side_card["name"]} (#{side_card["count"]}x #{side_card["cost"]} mana)\n"
+            acc <>
+              "  - #{card_rcs(side_card)}#{side_card["name"]} (#{side_card["count"]}x #{side_card["cost"]} mana)\n"
           end)
       end
 
@@ -391,5 +394,93 @@ defmodule HSCards do
         v -> Map.update(acc, v, 1, &(&1 + 1))
       end
     end)
+  end
+
+  defp card_rcs(%{"runeCost" => rune_cost_map}) do
+    case rune_cost_string(rune_cost_map) do
+      "" -> ""
+      str -> "(#{str}) "
+    end
+  end
+
+  defp card_rcs(_), do: ""
+
+  @doc """
+  Convert a rune cost map to a string representation.
+  """
+
+  def rune_cost_string(rune_cost_map) do
+    case inv_map(rune_cost_map) do
+      [{3, rune}] ->
+        "tri-#{rune}"
+
+      [{2, rune}] ->
+        c = upfirst(rune)
+        "#{c}#{c}"
+
+      [{2, primary}, {1, secondary}] ->
+        p = upfirst(primary)
+        "#{p}#{p}#{upfirst(secondary)}"
+
+      [{1, rune}] ->
+        "#{upfirst(rune)}"
+
+      [{1, p}, {1, s}] ->
+        "#{upfirst(p)}#{upfirst(s)}"
+
+      [{1, _}, {1, _}, {1, _}] ->
+        "rainbow"
+
+      [] ->
+        ""
+
+      # Hopefully this never appears in the database, but
+      # we might find it via a deckstring.
+      _ ->
+        "invalid"
+    end
+  end
+
+  defp upfirst(string) when is_binary(string) do
+    string |> String.first() |> String.upcase()
+  end
+
+  defp upfirst(_), do: ""
+
+  defp inv_map(map) when is_map(map) do
+    map
+    |> Enum.reduce([], fn
+      {_, 0}, acc -> acc
+      {k, v}, acc -> [{v, k} | acc]
+    end)
+    |> Enum.sort(:desc)
+  end
+
+  defp inv_map(_), do: []
+
+  def deck_rcs(deck) do
+    case gather_rcs(deck.maindeck ++ deck.sideboard, %{"blood" => 0, "frost" => 0, "unholy" => 0})
+         |> rune_cost_string() do
+      "" ->
+        ""
+
+      rcs ->
+        """
+            ## Rune Requirements: #{rcs}
+        """
+    end
+  end
+
+  # This is a little silly, but whatever
+  defp gather_rcs([], acc), do: acc
+
+  defp gather_rcs([card | rest], %{"blood" => bo, "frost" => fo, "unholy" => uo} = acc) do
+    case Map.get(card, "runeCost") do
+      %{"blood" => b, "frost" => f, "unholy" => u} ->
+        gather_rcs(rest, %{"blood" => max(bo, b), "frost" => max(fo, f), "unholy" => max(uo, u)})
+
+      _ ->
+        gather_rcs(rest, acc)
+    end
   end
 end
