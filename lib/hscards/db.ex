@@ -6,27 +6,37 @@ defmodule HSCards.DB do
   import Ecto.Query, only: [from: 2]
   require Logger
 
+  @default_options [match: :both, field: :name]
+  @doc """
+  Default search options for the `find/2` function.
+  """
+  def default_options, do: @default_options
+
+  @doc """
+  Available fields for searching cards.
+  """
+  @available_fields [:name, :dbfId]
+  def available_fields, do: @available_fields
+
+  @doc """
+  Available match modes for searching cards.
+  """
+  @available_match_modes [:exact, :fuzzy, :both]
+  def available_match_modes, do: @available_match_modes
+
   @doc """
   Find cards by serch term.
-  Keyword Options:
-  - `field:` (`:name` default)- which field to match against.
-    Available fields:
-      - `:name` - the name of the card.
-      - `:dbfId` - the unique identifier for the card.
-  - `match:` - how to match the name.
-    Available match modes:
-      - `:exact` - return cards with an exact match.
-      - `:fuzzy` - return cards with a substring match.
-      - `:both` (default) - returns `:exact` match if found, otherwise falls back to `:fuzzy`.
 
   returns:
   - `{:ok, card}` - if a single card is found.
   - `{:ambiguous, cards}` - if multiple cards match.
   - `{:error, reason}` - if no cards match.
+
+  ## Example
+
+      iex> HSCards.DB.find(123456, match: :exact, field: :dbfId)
+      {:error, "No match"}
   """
-  @default_options [match: :both, field: :name]
-  @available_fields [:name, :dbfId]
-  @available_match_modes [:exact, :fuzzy, :both]
 
   def find(term, options \\ []) do
     options = search_options(options)
@@ -46,7 +56,7 @@ defmodule HSCards.DB do
     else
       _ ->
         {:error,
-         "Invalid search options. Available match modes: #{@available_match_modes}, available fields: #{@available_fields}"}
+         "Invalid search options. Available match modes: #{inspect(@available_match_modes)}, available fields: #{inspect(@available_fields)}"}
     end
   end
 
@@ -70,7 +80,7 @@ defmodule HSCards.DB do
     )
   end
 
-  defp search_queries([]), do: {:error, "No matching cards found"}
+  defp search_queries([]), do: {:error, "No match"}
 
   defp search_queries([query | rest]) do
     case HSCards.Repo.all(query) do
@@ -82,7 +92,7 @@ defmodule HSCards.DB do
 
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
   @doc """
-  Fetches the latest cards from the Hearthstone JSON API and updates the local database.
+    Fetches the latest cards from the Hearthstone JSON API and updates the local database.
   """
   def update_from_sources do
     with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
