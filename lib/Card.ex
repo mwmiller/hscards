@@ -1,4 +1,4 @@
-defmodule HSCard do
+defmodule Card do
   use Ecto.Schema
 
   schema "cards" do

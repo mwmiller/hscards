@@ -55,7 +55,7 @@ defmodule HSCards.DB do
   end
 
   defp exact_query(term, which) do
-    from(c in HSCard,
+    from(c in Card,
       where: field(c, ^which) == ^term,
       select: c.full_info
     )
@@ -64,7 +64,7 @@ defmodule HSCards.DB do
   defp fuzzy_query(term, which) do
     like = "%#{term}%"
 
-    from(c in HSCard,
+    from(c in Card,
       where: like(field(c, ^which), ^like),
       select: c.full_info
     )
@@ -81,6 +81,9 @@ defmodule HSCards.DB do
   end
 
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
+  @doc """
+  Fetches the latest cards from the Hearthstone JSON API and updates the local database.
+  """
   def update_from_sources do
     with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
       json
@@ -89,7 +92,7 @@ defmodule HSCards.DB do
       |> Enum.map(fn card -> {card["dbfId"], card["name"], card} end)
       |> Enum.each(fn {dbf_id, name, card} ->
         HSCards.Repo.insert(
-          %HSCard{
+          %Card{
             dbfId: dbf_id,
             name: name,
             full_info: card
