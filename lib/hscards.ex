@@ -15,12 +15,12 @@ defmodule HSCards do
   Get card data by dbfId.
   """
   def by_dbf(dbf_id) do
-    case HSCards.DB.get_by_id(dbf_id) do
-      nil ->
-        {:error, "Card with dbfId #{dbf_id} not found"}
+    case HSCards.DB.find(dbf_id, field: :dbfId, match: :exact) do
+      {:ambiguous, cards} ->
+        {:error, "Multiple #{length(cards)} cards found with dbfId #{dbf_id}"}
 
-      %{full_info: fi} ->
-        {:ok, fi}
+      dbresult ->
+        dbresult
     end
   end
 
@@ -28,7 +28,7 @@ defmodule HSCards do
   Get card data by name.
   """
   def by_name(name) do
-    case HSCards.DB.get_by_name(name) do
+    case HSCards.DB.find(name) do
       {:ok, %{full_info: fi}} ->
         {:ok, fi}
 
