@@ -15,7 +15,7 @@ defmodule HSCards.DB do
   @doc """
   Available fields for searching cards.
   """
-  @available_fields [:name, :dbfId]
+  @available_fields [:name, :dbfId, :flavor, :artist]
   def available_fields, do: @available_fields
 
   @doc """
@@ -65,7 +65,7 @@ defmodule HSCards.DB do
   end
 
   defp exact_query(term, which) do
-    from(c in Card,
+    from(c in HSCards.Card,
       where: field(c, ^which) == ^term,
       select: c.full_info
     )
@@ -74,7 +74,7 @@ defmodule HSCards.DB do
   defp fuzzy_query(term, which) do
     like = "%#{term}%"
 
-    from(c in Card,
+    from(c in HSCards.Card,
       where: like(field(c, ^which), ^like),
       select: c.full_info
     )
@@ -86,7 +86,7 @@ defmodule HSCards.DB do
     case HSCards.Repo.all(query) do
       [] -> search_queries(rest)
       [card] -> {:ok, card}
-      cards when length(cards) > 1 -> {:ambiguous, cards}
+      cards -> {:ambiguous, cards}
     end
   end
 
@@ -99,12 +99,13 @@ defmodule HSCards.DB do
       json
       |> to_string()
       |> :json.decode()
-      |> Enum.map(fn card -> {card["dbfId"], card["name"], card} end)
-      |> Enum.each(fn {dbf_id, name, card} ->
+      |> Enum.each(fn card ->
         HSCards.Repo.insert(
-          %Card{
-            dbfId: dbf_id,
-            name: name,
+          %HSCards.Card{
+            dbfId: card["dbfId"],
+            name: card["name"],
+            artist: card["artist"],
+            flavor: card["flavor"],
             full_info: card
           },
           on_conflict: :replace_all

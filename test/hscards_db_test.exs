@@ -7,7 +7,7 @@ defmodule HSCardsDBTest do
     # Other tests might depend on these values, so we check them up front
     # This will either make it easier to debug or annoy me later
     assert DB.default_options() == [match: :both, field: :name]
-    assert DB.available_fields() == [:name, :dbfId]
+    assert DB.available_fields() == [:name, :dbfId, :flavor, :artist]
     assert DB.available_match_modes() == [:exact, :fuzzy, :both]
   end
 
@@ -38,9 +38,27 @@ defmodule HSCardsDBTest do
              DB.find("leeroy jenkins", match: :both, field: :name)
   end
 
+  test "flavor text" do
+    assert_raise Ecto.Query.CastError, fn -> DB.find(1, match: :exact, field: :flavor) end
+    assert {:error, "No match"} = DB.find("Leeroy", match: :exact, field: :flavor)
+    assert {:ok, %{"dbfId" => 104_618}} = DB.find("Leeroy J", match: :fuzzy, field: :flavor)
+
+    assert {:ambiguous, _} =
+             DB.find("lee", match: :both, field: :flavor)
+  end
+
+  test "artist search" do
+    assert_raise Ecto.Query.CastError, fn -> DB.find(1, match: :exact, field: :artist) end
+    assert {:error, "No match"} = DB.find("Leeroy", match: :exact, field: :artist)
+    assert {:ambiguous, _} = DB.find("Alex Horley Orlandelli", match: :fuzzy, field: :artist)
+
+    assert {:ok, %{"dbfId" => 68460}} =
+             DB.find("Alex Horley", match: :both, field: :artist)
+  end
+
   test "improper usage" do
     current_message =
-      "Invalid search options. Available match modes: [:exact, :fuzzy, :both], available fields: [:name, :dbfId]"
+      "Invalid search options. Available match modes: [:exact, :fuzzy, :both], available fields: [:name, :dbfId, :flavor, :artist]"
 
     assert {:error, ^current_message} = DB.find("baster", match: :invalid, field: :name)
 

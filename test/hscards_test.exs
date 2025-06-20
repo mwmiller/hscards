@@ -50,4 +50,24 @@ defmodule HSCardsTest do
 
     assert {:error, _} = HSCards.by_name("Nonexistent Card")
   end
+
+  test "by_artist" do
+    heavy_hitter = "Alex Horley Orlandelli"
+    # Very unlikely to get a single artist hit with fuzzy search
+    assert {:ambiguous, cards} = HSCards.by_artist(heavy_hitter)
+    # Credit shouldn't disappear we hope
+    assert length(cards) > 300
+    assert Enum.all?(cards, fn card -> card["artist"] == heavy_hitter end)
+
+    assert {:error, _} = HSCards.by_artist("Pablo Picasso")
+  end
+
+  test "by_flavor" do
+    assert {:ok, %{"dbfId" => 38227}} = HSCards.by_flavor("Nobody expects the Vilefin")
+    assert {:ambiguous, spanish} = HSCards.by_flavor("Nobody expects the ")
+    # Should not drop we hope!
+    assert length(spanish) > 2
+    # We're done when this fails
+    assert {:error, _} = HSCards.by_flavor("skibidi")
+  end
 end
