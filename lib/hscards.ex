@@ -14,7 +14,7 @@ defmodule HSCards do
   # Get card data by dbfId.
   # This is opaque and unlikely to be needed outside of the library.
   defp by_dbf(dbf_id) do
-    case HSCards.DB.find(dbf_id, field: :dbfId, match: :exact) do
+    case HSCards.DB.find(%{dbfId: dbf_id}, field_match: :exact) do
       {:ambiguous, cards} ->
         {:error, "Multiple #{length(cards)} cards found with dbfId #{dbf_id}"}
 
@@ -26,21 +26,17 @@ defmodule HSCards do
   @doc """
   Get card data by name.
   """
-  def by_name(name), do: get_card_by_field(name, :name, :fuzzy)
+  def by_name(name), do: HSCards.DB.find(%{name: name}, field_match: :fuzzy)
 
   @doc """
   Get card data by artist.
   """
-  def by_artist(artist), do: get_card_by_field(artist, :artist, :fuzzy)
+  def by_artist(artist), do: HSCards.DB.find(%{artist: artist}, field_match: :fuzzy)
 
   @doc """
   Get card data by flavor text.
   """
-  def by_flavor(flavor), do: get_card_by_field(flavor, :flavor, :fuzzy)
-
-  defp get_card_by_field(term, field, match) do
-    HSCards.DB.find(term, field: field, match: match)
-  end
+  def by_flavor(flavor), do: HSCards.DB.find(%{flavor: flavor}, field_match: :fuzzy)
 
   # Maps both ways for encode and decode
   @formats_map [:unknown, :wild, :standard, :classic, :twist]

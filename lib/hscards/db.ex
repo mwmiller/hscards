@@ -3,29 +3,43 @@ defmodule HSCards.DB do
   Dealing with Hearthstone cards database
   """
 
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   require Logger
 
-  @default_options [match: :both, field: :name]
+  @default_options [field_match: :fuzzy, query_mode: :and]
   @doc """
   Default search options for the `find/2` function.
   """
   def default_options, do: @default_options
 
+  @available_fields [:name, :dbfId, :flavor, :artist]
   @doc """
   Available fields for searching cards.
   """
-  @available_fields [:name, :dbfId, :flavor, :artist]
   def available_fields, do: @available_fields
 
+  @available_field_matches [:exact, :fuzzy]
   @doc """
   Available match modes for searching cards.
   """
-  @available_match_modes [:exact, :fuzzy, :both]
-  def available_match_modes, do: @available_match_modes
+  def available_field_matches, do: @available_field_matches
+
+  @available_query_modes [:and, :or]
+  @doc """
+  Available query modes for searching cards.
+  """
+  def available_query_modes, do: @available_query_modes
 
   @doc """
-  Find cards by serch term.
+  Find cards by search map.
+
+  Search map should use atom keys from `available_field_matches/0`
+  Values should be single values (list support coming soon!)
+
+  Query mode selects between the union and intersection of the resulting
+  card sets.
+
+  Field match chooses between substring and exact matches.
 
   returns:
   - `{:ok, card}` - if a single card is found.
@@ -34,29 +48,27 @@ defmodule HSCards.DB do
 
   ## Example
 
-      iex> HSCards.DB.find(123456, match: :exact, field: :dbfId)
+      iex> HSCards.DB.find(%{dbfId: 123456}, field_match: :exact, query_mode: :and)
       {:error, "No match"}
   """
 
-  def find(term, options \\ []) do
+  def find(terms_map, options \\ []) do
+    # We do all of the validation here to avoid propogating errors later
     options = search_options(options)
 
-    with true <- options[:match] in @available_match_modes,
-         true <- options[:field] in @available_fields do
-      # Broken out here because I might want to add more options later
-      # or validate them differently
-      selected_queries =
-        case options[:match] do
-          :exact -> [exact_query(term, options[:field])]
-          :fuzzy -> [fuzzy_query(term, options[:field])]
-          :both -> [exact_query(term, options[:field]), fuzzy_query(term, options[:field])]
-        end
-
-      search_queries(selected_queries)
+    with true <- options[:field_match] in @available_field_matches,
+         true <- options[:query_mode] in @available_query_modes,
+         [] <-
+           Enum.reject(Map.keys(terms_map), fn k -> k in @available_fields end) do
+      search_queries(terms_map, options)
     else
-      _ ->
+      false ->
         {:error,
-         "Invalid search options. Available match modes: #{inspect(@available_match_modes)}, available fields: #{inspect(@available_fields)}"}
+         "Invalid search options. Available match modes: #{inspect(@available_field_matches)}, available query modes: #{inspect(@available_query_modes)}"}
+
+      bad_fields ->
+        {:error,
+         "Invalid search fields. Available fields: #{inspect(@available_fields)}, but got: #{inspect(bad_fields)}"}
     end
   end
 
@@ -64,27 +76,37 @@ defmodule HSCards.DB do
     Keyword.merge(@default_options, options)
   end
 
-  defp exact_query(term, which) do
-    from(c in HSCards.Card,
-      where: field(c, ^which) == ^term,
-      select: c.full_info
-    )
+  defp field_queries([], _options, query), do: query
+
+  defp field_queries([{field, term} | rest], options, query) do
+    nq =
+      case options[:field_match] do
+        :exact ->
+          case options[:query_mode] do
+            :and -> query |> where([c], field(c, ^field) == ^term)
+            :or -> query |> or_where([c], field(c, ^field) == ^term)
+          end
+
+        :fuzzy ->
+          like_term = "%#{term}%"
+
+          case options[:query_mode] do
+            :and -> query |> where([c], like(field(c, ^field), ^like_term))
+            :or -> query |> or_where([c], like(field(c, ^field), ^like_term))
+          end
+      end
+
+    field_queries(rest, options, nq)
   end
 
-  defp fuzzy_query(term, which) do
-    like = "%#{term}%"
+  defp search_queries(terms_map, options) do
+    query =
+      terms_map
+      |> Map.to_list()
+      |> field_queries(options, from(c in HSCards.Card, select: c.full_info))
 
-    from(c in HSCards.Card,
-      where: like(field(c, ^which), ^like),
-      select: c.full_info
-    )
-  end
-
-  defp search_queries([]), do: {:error, "No match"}
-
-  defp search_queries([query | rest]) do
     case HSCards.Repo.all(query) do
-      [] -> search_queries(rest)
+      [] -> {:error, "No match"}
       [card] -> {:ok, card}
       cards -> {:ambiguous, cards}
     end
