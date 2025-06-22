@@ -26,17 +26,17 @@ defmodule HSCards do
   @doc """
   Get card data by name.
   """
-  def by_name(name), do: HSCards.DB.find(%{name: name}, field_match: :fuzzy)
+  def by_name(name), do: HSCards.DB.find(%{name: name})
 
   @doc """
   Get card data by artist.
   """
-  def by_artist(artist), do: HSCards.DB.find(%{artist: artist}, field_match: :fuzzy)
+  def by_artist(artist), do: HSCards.DB.find(%{artist: artist})
 
   @doc """
   Get card data by flavor text.
   """
-  def by_flavor(flavor), do: HSCards.DB.find(%{flavor: flavor}, field_match: :fuzzy)
+  def by_flavor(flavor), do: HSCards.DB.find(%{flavor: flavor})
 
   # Maps both ways for encode and decode
   @formats_map [:unknown, :wild, :standard, :classic, :twist]

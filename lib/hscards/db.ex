@@ -12,7 +12,7 @@ defmodule HSCards.DB do
   """
   def default_options, do: @default_options
 
-  @available_fields [:name, :dbfId, :flavor, :artist]
+  @available_fields [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost]
   @doc """
   Available fields for searching cards.
   """
@@ -33,7 +33,7 @@ defmodule HSCards.DB do
   @doc """
   Find cards by search map.
 
-  Search map should use atom keys from `available_field_matches/0`
+  Search map should use atom keys from `available_fields/0`
   Values should be single values (list support coming soon!)
 
   Query mode selects between the union and intersection of the resulting
@@ -112,6 +112,27 @@ defmodule HSCards.DB do
     end
   end
 
+  # Extract class data from the downloaded card data.
+  # If it has classes set, use that, otherwise use cardClass.
+  # some other modes don't have this, but I don't care about those
+  defp index_classes(%{"classes" => classes}) do
+    array_to_index_string(classes)
+  end
+
+  defp index_classes(%{"cardClass" => cc}) do
+    cc
+  end
+
+  defp index_classes(_), do: ""
+
+  # We need something againt which we can do string comparisons
+  # We never return this so it can use this unprntable format
+  defp array_to_index_string(array) when is_list(array) do
+    Enum.join(array, <<2>>)
+  end
+
+  defp array_to_index_string(_), do: ""
+
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
   @doc """
     Fetches the latest cards from the Hearthstone JSON API and updates the local database.
@@ -126,6 +147,9 @@ defmodule HSCards.DB do
           %HSCards.Card{
             dbfId: card["dbfId"],
             name: card["name"],
+            cost: card["cost"],
+            class: index_classes(card),
+            mechanic: array_to_index_string(card["mechanics"]),
             artist: card["artist"],
             flavor: card["flavor"],
             full_info: card

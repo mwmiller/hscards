@@ -7,7 +7,7 @@ defmodule HSCardsDBTest do
     # Other tests might depend on these values, so we check them up front
     # This will either make it easier to debug or annoy me later
     assert [field_match: :fuzzy, query_mode: :and] = DB.default_options()
-    assert [:name, :dbfId, :flavor, :artist] = DB.available_fields()
+    assert [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost] = DB.available_fields()
     assert [:exact, :fuzzy] = DB.available_field_matches()
     assert [:and, :or] = DB.available_query_modes()
   end
@@ -55,11 +55,11 @@ defmodule HSCardsDBTest do
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist], but got: [:nonsense]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost], but got: [:nonsense]"} =
              DB.find(%{nonsense: "baster"})
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist], but got: [\"nonsense\"]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost], but got: [\"nonsense\"]"} =
              DB.find(%{"nonsense" => "baster"})
   end
 end
