@@ -6,36 +6,36 @@ defmodule HSCardsDBTest do
   test "sanity" do
     # Other tests might depend on these values, so we check them up front
     # This will either make it easier to debug or annoy me later
-    assert [field_match: :fuzzy, query_mode: :and] = DB.default_options()
+    assert [string_match: :fuzzy, query_mode: :and] = DB.default_options()
 
     assert [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity] =
              DB.available_fields()
 
-    assert [:exact, :fuzzy] = DB.available_field_matches()
+    assert [:exact, :fuzzy] = DB.available_string_matches()
     assert [:and, :or] = DB.available_query_modes()
   end
 
   test "match modes" do
-    assert {:error, "No match"} = DB.find(%{name: "baster"}, field_match: :exact)
+    assert {:error, "No match"} = DB.find(%{name: "baster"}, string_match: :exact)
 
     assert {:ok, %{"name" => "Keymaster Alabaster"}} =
-             DB.find(%{name: "baster"}, field_match: :fuzzy)
+             DB.find(%{name: "baster"}, string_match: :fuzzy)
   end
 
   test "dbfId types" do
-    assert {:error, "No match"} = DB.find(%{dbfId: 1}, field_match: :exact)
+    assert {:error, "No match"} = DB.find(%{dbfId: 1}, string_match: :exact)
     assert {:ok, %{"name" => "Crystalline Oracle"}} = DB.find(%{dbfId: 41173})
   end
 
   test "name types" do
-    assert {:error, "No match"} = DB.find(%{name: "Leeroy"}, field_match: :exact)
+    assert {:error, "No match"} = DB.find(%{name: "Leeroy"}, string_match: :exact)
     assert {:ambiguous, leeroys} = DB.find(%{name: "Leeroy J"})
     assert length(leeroys) > 8
   end
 
   test "flavor text" do
-    assert {:error, "No match"} = DB.find(%{flavor: "Leeroy"}, field_match: :exact)
-    assert {:ok, %{"dbfId" => 104_618}} = DB.find(%{flavor: "Leeroy J"}, field_match: :fuzzy)
+    assert {:error, "No match"} = DB.find(%{flavor: "Leeroy"}, string_match: :exact)
+    assert {:ok, %{"dbfId" => 104_618}} = DB.find(%{flavor: "Leeroy J"}, string_match: :fuzzy)
     assert {:ambiguous, _} = DB.find(%{flavor: "lee"})
   end
 
@@ -44,7 +44,7 @@ defmodule HSCardsDBTest do
     assert {:ambiguous, _} = DB.find(%{artist: "Alex Horley Orlandelli"})
 
     assert {:ok, %{"dbfId" => 68460}} =
-             DB.find(%{artist: "Alex Horley"}, field_match: :exact)
+             DB.find(%{artist: "Alex Horley"}, string_match: :exact)
   end
 
   test "rarity search" do
@@ -97,9 +97,9 @@ defmodule HSCardsDBTest do
 
   test "improper usage" do
     options_msg =
-      "Invalid search options. Available match modes: [:exact, :fuzzy], available query modes: [:and, :or]"
+      "Invalid search options. Available string match modes: [:exact, :fuzzy], available query modes: [:and, :or]"
 
-    assert {:error, ^options_msg} = DB.find(%{name: "baster"}, field_match: :invalid)
+    assert {:error, ^options_msg} = DB.find(%{name: "baster"}, string_match: :invalid)
 
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 

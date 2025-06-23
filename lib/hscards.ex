@@ -14,7 +14,7 @@ defmodule HSCards do
   # Get card data by dbfId.
   # This is opaque and unlikely to be needed outside of the library.
   defp by_dbf(dbf_id) do
-    case HSCards.DB.find(%{dbfId: dbf_id}, field_match: :exact) do
+    case HSCards.DB.find(%{dbfId: dbf_id}) do
       {:ambiguous, cards} ->
         {:error, "Multiple #{length(cards)} cards found with dbfId #{dbf_id}"}
 

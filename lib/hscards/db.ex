@@ -6,7 +6,7 @@ defmodule HSCards.DB do
   import Ecto.Query
   require Logger
 
-  @default_options [field_match: :fuzzy, query_mode: :and]
+  @default_options [string_match: :fuzzy, query_mode: :and]
   @doc """
   Default search options for the `find/2` function.
   """
@@ -28,11 +28,11 @@ defmodule HSCards.DB do
   """
   def available_fields, do: @available_fields
 
-  @available_field_matches [:exact, :fuzzy]
+  @available_string_matches [:exact, :fuzzy]
   @doc """
   Available match modes for searching cards.
   """
-  def available_field_matches, do: @available_field_matches
+  def available_string_matches, do: @available_string_matches
 
   @available_query_modes [:and, :or]
   @doc """
@@ -58,7 +58,7 @@ defmodule HSCards.DB do
 
   ## Example
 
-      iex> HSCards.DB.find(%{dbfId: 123456}, field_match: :exact, query_mode: :and)
+      iex> HSCards.DB.find(%{dbfId: 123456}, string_match: :exact, query_mode: :and)
       {:error, "No match"}
   """
 
@@ -66,7 +66,7 @@ defmodule HSCards.DB do
     # We do all of the validation here to avoid propogating errors later
     options = search_options(options)
 
-    with true <- options[:field_match] in @available_field_matches,
+    with true <- options[:string_match] in @available_string_matches,
          true <- options[:query_mode] in @available_query_modes,
          [] <-
            Enum.reject(Map.keys(terms_map), fn k -> k in @available_fields end) do
@@ -74,7 +74,7 @@ defmodule HSCards.DB do
     else
       false ->
         {:error,
-         "Invalid search options. Available match modes: #{inspect(@available_field_matches)}, available query modes: #{inspect(@available_query_modes)}"}
+         "Invalid search options. Available string match modes: #{inspect(@available_string_matches)}, available query modes: #{inspect(@available_query_modes)}"}
 
       bad_fields ->
         {:error,
@@ -95,11 +95,11 @@ defmodule HSCards.DB do
       case options[:query_mode] do
         :and ->
           query
-          |> where(^terms_clause(term, field, options[:field_match], false))
+          |> where(^terms_clause(term, field, options[:string_match], false))
 
         :or ->
           query
-          |> or_where(^terms_clause(term, field, options[:field_match], false))
+          |> or_where(^terms_clause(term, field, options[:string_match], false))
       end
 
     field_queries(rest, options, nq)
@@ -113,13 +113,13 @@ defmodule HSCards.DB do
     # If the term is an integer or booleans, we force an exact match
     # This isn't exactly the same as checking the field type
     # but it is close enough for our purposes
-    case match_type == :exact or is_integer(term) or is_boolean(term) do
+    case is_binary(term) and match_type == :fuzzy do
       true ->
-        dynamic([c], field(c, ^field) == ^term or ^prev)
-
-      false ->
         like_term = "%#{term}%"
         dynamic([c], like(field(c, ^field), ^like_term) or ^prev)
+
+      false ->
+        dynamic([c], field(c, ^field) == ^term or ^prev)
     end
   end
 
