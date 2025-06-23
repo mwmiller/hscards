@@ -12,7 +12,17 @@ defmodule HSCards.DB do
   """
   def default_options, do: @default_options
 
-  @available_fields [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost]
+  @available_fields [
+    :name,
+    :dbfId,
+    :flavor,
+    :artist,
+    :mechanic,
+    :class,
+    :cost,
+    :collectible,
+    :rarity
+  ]
   @doc """
   Available fields for searching cards.
   """
@@ -97,13 +107,13 @@ defmodule HSCards.DB do
 
   # This is kind of a goofy shared functon head.
   defp terms_clause(term, field, match_type, prev) when not is_list(term) do
-    # If the term is an integer, we force an exact match
-    # Thiss isn't exactly the same as checking the field type
-    # but it is close enough for our purposes
-    exact_match = match_type == :exact or is_integer(term)
     # We don't mind that we OR in a `false` here, it just makes the
     # dynamic clause more readable
-    case exact_match do
+
+    # If the term is an integer or booleans, we force an exact match
+    # This isn't exactly the same as checking the field type
+    # but it is close enough for our purposes
+    case match_type == :exact or is_integer(term) or is_boolean(term) do
       true ->
         dynamic([c], field(c, ^field) == ^term or ^prev)
 
@@ -168,6 +178,8 @@ defmodule HSCards.DB do
           %HSCards.Card{
             dbfId: card["dbfId"],
             name: card["name"],
+            rarity: card["rarity"],
+            collectible: card["collectible"],
             cost: card["cost"],
             class: index_classes(card),
             mechanic: array_to_index_string(card["mechanics"]),

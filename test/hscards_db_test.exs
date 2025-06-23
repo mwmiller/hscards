@@ -7,7 +7,10 @@ defmodule HSCardsDBTest do
     # Other tests might depend on these values, so we check them up front
     # This will either make it easier to debug or annoy me later
     assert [field_match: :fuzzy, query_mode: :and] = DB.default_options()
-    assert [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost] = DB.available_fields()
+
+    assert [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity] =
+             DB.available_fields()
+
     assert [:exact, :fuzzy] = DB.available_field_matches()
     assert [:and, :or] = DB.available_query_modes()
   end
@@ -21,9 +24,7 @@ defmodule HSCardsDBTest do
 
   test "dbfId types" do
     assert {:error, "No match"} = DB.find(%{dbfId: 1}, field_match: :exact)
-    assert {:ambiguous, heaps} = DB.find(%{dbfId: 1})
-    # This is true today, and it should be monotonically increasing
-    assert length(heaps) > 15_000
+    assert {:ok, %{"name" => "Crystalline Oracle"}} = DB.find(%{dbfId: 41173})
   end
 
   test "name types" do
@@ -46,6 +47,54 @@ defmodule HSCardsDBTest do
              DB.find(%{artist: "Alex Horley"}, field_match: :exact)
   end
 
+  test "rarity search" do
+    assert {:error, "No match"} = DB.find(%{rarity: "NONSENSE"})
+    assert {:ambiguous, _} = DB.find(%{rarity: "EPIC"})
+    assert {:ambiguous, _} = DB.find(%{rarity: ["epic", "legendary"]})
+  end
+
+  test "collectible search" do
+    assert {:ambiguous, c} = DB.find(%{collectible: true})
+    assert length(c) > 7000
+    assert {:ambiguous, u} = DB.find(%{collectible: false})
+    assert length(u) > 25000
+  end
+
+  test "mechanic search" do
+    assert {:error, "No match"} = DB.find(%{mechanic: "NONSENSE"})
+    assert {:ambiguous, _} = DB.find(%{mechanic: "Battlecry"})
+    assert {:ambiguous, _} = DB.find(%{mechanic: ["Battlecry", "Deathrattle"]})
+  end
+
+  test "class search" do
+    assert {:error, "No match"} = DB.find(%{class: "NONSENSE"})
+    assert {:ambiguous, _} = DB.find(%{class: "Druid"})
+    assert {:ambiguous, _} = DB.find(%{class: ["Druid", "Hunter"]})
+  end
+
+  test "cost search" do
+    assert {:error, "No match"} = DB.find(%{cost: 1000})
+    # I hope to never update this test
+    assert {:ok, %{"name" => "The Ceaseless Expanse"}} = DB.find(%{cost: 125})
+    assert {:ambiguous, _} = DB.find(%{cost: 10})
+    assert {:ambiguous, _} = DB.find(%{cost: [1, 2, 3]})
+  end
+
+  test "multiple fields" do
+    assert {:error, "No match"} = DB.find(%{name: "baster", rarity: "EPIC"})
+
+    assert {:ok, %{"name" => "Keymaster Alabaster"}} =
+             DB.find(%{
+               cost: 7,
+               mechanic: "TRIGGER_VISUAL",
+               rarity: "Legendary",
+               flavor: "mastery"
+             })
+
+    assert {:ambiguous, out} = DB.find(%{name: ["benedict", "baster"], collectible: true})
+    assert length(out) > 4
+  end
+
   test "improper usage" do
     options_msg =
       "Invalid search options. Available match modes: [:exact, :fuzzy], available query modes: [:and, :or]"
@@ -55,11 +104,11 @@ defmodule HSCardsDBTest do
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost], but got: [:nonsense]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity], but got: [:nonsense]"} =
              DB.find(%{nonsense: "baster"})
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost], but got: [\"nonsense\"]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity], but got: [\"nonsense\"]"} =
              DB.find(%{"nonsense" => "baster"})
   end
 end
