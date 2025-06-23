@@ -79,24 +79,45 @@ defmodule HSCards.DB do
   defp field_queries([], _options, query), do: query
 
   defp field_queries([{field, term} | rest], options, query) do
+    # We always or on the fields, but we use the query mode to combine
+    # the results of the individual field queries
     nq =
-      case options[:field_match] do
-        :exact ->
-          case options[:query_mode] do
-            :and -> query |> where([c], field(c, ^field) == ^term)
-            :or -> query |> or_where([c], field(c, ^field) == ^term)
-          end
+      case options[:query_mode] do
+        :and ->
+          query
+          |> where(^terms_clause(term, field, options[:field_match], false))
 
-        :fuzzy ->
-          like_term = "%#{term}%"
-
-          case options[:query_mode] do
-            :and -> query |> where([c], like(field(c, ^field), ^like_term))
-            :or -> query |> or_where([c], like(field(c, ^field), ^like_term))
-          end
+        :or ->
+          query
+          |> or_where(^terms_clause(term, field, options[:field_match], false))
       end
 
     field_queries(rest, options, nq)
+  end
+
+  # This is kind of a goofy shared functon head.
+  defp terms_clause(term, field, match_type, prev) when not is_list(term) do
+    # If the term is an integer, we force an exact match
+    # Thiss isn't exactly the same as checking the field type
+    # but it is close enough for our purposes
+    exact_match = match_type == :exact or is_integer(term)
+    # We don't mind that we OR in a `false` here, it just makes the
+    # dynamic clause more readable
+    case exact_match do
+      true ->
+        dynamic([c], field(c, ^field) == ^term or ^prev)
+
+      false ->
+        like_term = "%#{term}%"
+        dynamic([c], like(field(c, ^field), ^like_term) or ^prev)
+    end
+  end
+
+  # This is the case where we have a list of terms
+  defp terms_clause([], _field, _options, clause), do: clause
+
+  defp terms_clause([term | rest], field, options, clause) do
+    terms_clause(rest, field, options, terms_clause(term, field, options, clause))
   end
 
   defp search_queries(terms_map, options) do
