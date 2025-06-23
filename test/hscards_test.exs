@@ -1,5 +1,5 @@
 defmodule HSCardsTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest HSCards
 
   test "deckstrings round trip" do

@@ -1,5 +1,5 @@
 defmodule HSCardsDBTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest HSCards.DB
   alias HSCards.DB
 

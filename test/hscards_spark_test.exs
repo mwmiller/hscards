@@ -1,5 +1,5 @@
 defmodule HSCardsSparkTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest HSCards.Spark
   alias HSCards.Spark
 
