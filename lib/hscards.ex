@@ -92,7 +92,8 @@ defmodule HSCards do
     |> Base.encode64()
   end
 
-  def to_deckstring(_) do
+  def to_deckstring(e) do
+    IO.inspect(e)
     {:error, "Invalid deck format"}
   end
 
@@ -225,9 +226,9 @@ defmodule HSCards do
 
   defp md_format(deck) do
     format_desc =
-      case Sets.zodiac_from_deck(deck) do
-        {:ok, z} -> " (#{z})"
-        _ -> ""
+      case deck.zodiac do
+        nil -> ""
+        z -> " (#{z})"
       end
 
     """
@@ -328,7 +329,7 @@ defmodule HSCards do
           {other, deck}
       end
 
-    final_deck
+    final_deck |> Sets.add_deck_info()
   end
 
   defp grab({bytes, deck}, which) do

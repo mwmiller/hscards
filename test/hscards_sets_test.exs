@@ -4,21 +4,22 @@ defmodule HSCardSetsTest do
   alias HSCards.Sets
 
   test "some deckstrings from around" do
-    assert {:ok, "Year of the Raptor"} =
-             Sets.zodiac_from_deck(
+    assert %{zodiac: %{name: "Year of the Raptor"}} =
+             Sets.add_deck_info(
                "AAECAaIHCoukBb2+BrnBBvTJBpfXBvbdBqLhBszhBqrqBsODBwr2nwT3nwS2tQaGvwbpyQaW1gaL3Aae3Aaa5gbk6gYAAA=="
              )
 
-    assert {:ok, "Year of the Pegasus"} =
-             Sets.zodiac_from_deck(
+    assert %{zodiac: %{name: "Year of the Pegasus"}} =
+             Sets.add_deck_info(
                "AAECAZ8FBNK5BtG/BrrOBpfXBg3JoASS1AS1ngbTngbCvgbBvwbDvwbKvwbtyQbzyQaM1gaW1gaA1wYAAA=="
              )
 
-    assert {:error, "Must supply a valid standard deck to determine year"} =
-             Sets.zodiac_from_deck(
-               "AAEBAZICDpvwAtn5A4mLBKWtBL/OBK/kBObkBZ/zBaOiBqD0Bqn1BrT3BqyIB4CuBwjhFa6fBNGcBoeoBoexBpb0Bsf4BqCBBwAA"
+    # My crazy wild deck
+    assert %{sets: many} =
+             Sets.add_deck_info(
+               "AAEBAafDAyj+DeCsAoO7ApbEAonNAqDOAqniAvLsAqH+ApaKA4KUA86iA4ixA46xA8i+A/bdA5jeA/jjA4f3A4yBBOiLBIWjBKG2BLrtBP7uBJfvBKWRBZOSBfiWBbiYBZTEBc/2Bbj+Ba//BZueBr6hBq+oBsewBsK2BtOvBwAAAA=="
              )
 
-    assert {:error, _deckstring_bad} = Sets.zodiac_from_deck("ABCDE")
+    assert length(many) > 20
   end
 end

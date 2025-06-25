@@ -39,14 +39,14 @@ defmodule HSCards.Sets do
               end
 
             sets = prev ++ [foty] ++ roty
-            set_ms = sets |> Enum.map(fn s -> s.code end) |> MapSet.new()
+            sets_ms = sets |> Enum.map(fn s -> s.code end) |> MapSet.new()
 
             %{
               year: String.to_integer(year),
               code: String.upcase(animal),
               name: "Year of the #{animal}",
               sets: sets,
-              set_ms: set_ms,
+              sets_ms: sets_ms,
               begins: foty.release_date,
               ends: ends
             }
@@ -54,33 +54,52 @@ defmodule HSCards.Sets do
           |> Enum.sort_by(& &1.begins, {:asc, Date})
 
   @doc """
-  Infer the year for a standard deck from its composition.
+  Collect set infomation about deck
   As a convenience will convert a supplied deckstring if possible
 
   Returns: `{:ok, zodiacyear_string]` or `{:error, msg}`
   """
-  def zodiac_from_deck(deck)
+  def add_deck_info(deck)
 
-  def zodiac_from_deck(deck) when is_binary(deck) do
-    deck |> HSCards.from_deckstring() |> zodiac_from_deck
+  def add_deck_info(deck) when is_binary(deck) do
+    deck |> HSCards.from_deckstring() |> add_deck_info
   end
 
   # This is the super-naive solution
   # We might want to build better structures and run in reverse
-  def zodiac_from_deck(%{format: :standard} = deck) do
-    (deck.maindeck ++ deck.sideboard)
-    |> Enum.map(fn card -> Map.get(card, "set", "INVALID") end)
-    |> MapSet.new()
-    |> match_set(@zodiac)
+  def add_deck_info(%{format: :standard} = deck) do
+    deck_plus = add_basic_keys(deck)
+
+    case match_zodiac(deck_plus.sets_ms, @zodiac) do
+      {:ok, z} -> Map.merge(deck_plus, %{zodiac: z})
+      _ -> deck_plus
+    end
   end
 
-  def zodiac_from_deck(_), do: {:error, "Must supply a valid standard deck to determine year"}
+  def add_deck_info(%{format: :wild} = deck) do
+    add_basic_keys(deck)
+  end
 
-  defp match_set(_, []), do: {:error, "Cannot find a matching zodiac year"}
+  def add_deck_info(_), do: {:error, "Must supply a valid standard or wild deck"}
 
-  defp match_set(used, [zodiac | rest]) do
+  defp add_basic_keys(deck) do
+    # We'll let that de-dupe for us
+    ms =
+      case Map.has_key?(deck, :sideboard) do
+        true -> deck.maindeck ++ deck.sideboard
+        false -> deck.maindeck
+      end
+      |> Enum.map(fn card -> Map.get(card, "set", "INVALID") end)
+      |> MapSet.new()
+
+    Map.merge(deck, %{sets: MapSet.to_list(ms), sets_ms: ms})
+  end
+
+  defp match_zodiac(_, []), do: {:error, "Cannot find a matching zodiac year"}
+
+  defp match_zodiac(used, [zodiac | rest]) do
     # Will fix up precomputation when I settle everything
-    precomputed = zodiac.set_ms
+    precomputed = zodiac.sets_ms
 
     year_sets =
       case MapSet.member?(precomputed, "CORE_#{zodiac.year}") do
@@ -91,8 +110,8 @@ defmodule HSCards.Sets do
     diff = MapSet.difference(used, year_sets)
 
     case MapSet.size(diff) do
-      0 -> {:ok, zodiac.name}
-      _ -> match_set(used, rest)
+      0 -> {:ok, zodiac}
+      _ -> match_zodiac(used, rest)
     end
   end
 end
