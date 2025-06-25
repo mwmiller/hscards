@@ -3,18 +3,20 @@ defmodule HSCards do
   Dealing with Hearthstone cards
   """
 
+  alias HSCards.{DB, Sets}
+
   @doc """
   Update the card database with the latest cards from the Hearthstone JSON API.
   They are stored in an SQLite database in priv
   """
   def sync_to_latest_db do
-    HSCards.DB.update_from_sources()
+    DB.update_from_sources()
   end
 
   # Get card data by dbfId.
   # This is opaque and unlikely to be needed outside of the library.
   defp by_dbf(dbf_id) do
-    case HSCards.DB.find(%{dbfId: dbf_id}) do
+    case DB.find(%{dbfId: dbf_id}) do
       {:ambiguous, cards} ->
         {:error, "Multiple #{length(cards)} cards found with dbfId #{dbf_id}"}
 
@@ -26,17 +28,17 @@ defmodule HSCards do
   @doc """
   Get card data by name.
   """
-  def by_name(name), do: HSCards.DB.find(%{name: name})
+  def by_name(name), do: DB.find(%{name: name})
 
   @doc """
   Get card data by artist.
   """
-  def by_artist(artist), do: HSCards.DB.find(%{artist: artist})
+  def by_artist(artist), do: DB.find(%{artist: artist})
 
   @doc """
   Get card data by flavor text.
   """
-  def by_flavor(flavor), do: HSCards.DB.find(%{flavor: flavor})
+  def by_flavor(flavor), do: DB.find(%{flavor: flavor})
 
   # Maps both ways for encode and decode
   @formats_map [:unknown, :wild, :standard, :classic, :twist]
@@ -47,7 +49,10 @@ defmodule HSCards do
   Create a deck from a deckstring.
   """
   def from_deckstring(deckstring) do
-    deckstring |> Base.decode64!() |> build_deck
+    case deckstring |> Base.decode64() do
+      :error -> {:error, "Deckstring not properly encoded"}
+      {:ok, bytes} -> build_deck(bytes)
+    end
   end
 
   @doc """
@@ -101,7 +106,7 @@ defmodule HSCards do
     mapped_sb = map_sideboard(Map.get(deck, :sideboard, []), %{})
     sorted_deck = card_sort(deck.maindeck)
 
-    md_format(deck.format) <>
+    md_format(deck) <>
       md_heroes(deck.heroes) <>
       md_meta(deck) <>
       md_deck(sorted_deck, -1, mapped_sb, "")
@@ -218,12 +223,17 @@ defmodule HSCards do
     md_deck(rest, cost, sideboard, curr <> cost_header <> base <> earn <> earn_golden <> owns)
   end
 
-  defp md_format(format) when is_atom(format),
-    do: """
-    ## Format: #{format |> to_string |> String.capitalize()}
-    """
+  defp md_format(deck) do
+    format_desc =
+      case Sets.zodiac_from_deck(deck) do
+        {:ok, z} -> " (#{z})"
+        _ -> ""
+      end
 
-  defp md_format(_), do: ""
+    """
+    ## Format: #{deck.format |> to_string |> String.capitalize()}#{format_desc}
+    """
+  end
 
   defp md_heroes(heroes) when length(heroes) == 1 do
     [hero] = heroes
@@ -285,6 +295,10 @@ defmodule HSCards do
 
   defp build_deck(<<0, 1, format::integer-size(8), bytes::binary>>) do
     stack_deck({bytes, %{format: Map.get(@formats_map, format, :undefined)}})
+  end
+
+  defp build_deck(_) do
+    {:error, "Not a proper deckstring"}
   end
 
   defp stack_deck({<<>>, out}), do: out
