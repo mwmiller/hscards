@@ -4,7 +4,9 @@ defmodule HSCards.DB do
   """
 
   import Ecto.Query
+  import SqliteVec.Ecto.Query
   require Logger
+  alias HSCards.Learned
 
   @default_options [string_match: :fuzzy, query_mode: :and]
   @doc """
@@ -39,6 +41,33 @@ defmodule HSCards.DB do
   Available query modes for searching cards.
   """
   def available_query_modes, do: @available_query_modes
+
+  @doc """
+  Find similar cards using a vector embedding
+  NO warranty is provided including fitness for purpose
+
+  Can choose the number of results to return.
+
+  Returns a list of card maps
+  """
+  def similar_cards(card, limit \\ 5) do
+    case HSCards.Repo.one(from(i in HSCards.Embedding, where: i.dbfId == ^card)) do
+      %{embedding: v} ->
+        HSCards.Repo.all(
+          from(i in HSCards.Embedding,
+            join: c in HSCards.Card,
+            on: i.dbfId == c.dbfId,
+            where: i.dbfId != ^card,
+            select: c.full_info,
+            order_by: vec_distance_L2(i.embedding, vec_f32(v)),
+            limit: ^limit
+          )
+        )
+
+      _ ->
+        :error
+    end
+  end
 
   @doc """
   Find cards by search map.
@@ -191,7 +220,14 @@ defmodule HSCards.DB do
         )
       end)
 
-      Logger.info("Cards database updated successfully.")
+      Learned.embeddings_map()
+      |> Enum.each(fn {dbfId, embedding} ->
+        HSCards.Repo.insert(
+          %HSCards.Embedding{dbfId: dbfId, embedding: SqliteVec.Float32.new(embedding)},
+          on_conflict: :replace_all
+        )
+      end)
+
       :ok
     else
       err ->
