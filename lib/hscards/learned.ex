@@ -3,6 +3,106 @@ defmodule HSCards.Learned do
   Card learnings
   """
 
+  import Ecto.Query
+  import SqliteVec.Ecto.Query
+
+  @default_similar_options [
+    same_cost: false,
+    same_class: false,
+    same_type: false,
+    sets: :all,
+    limit: 5
+  ]
+  @doc """
+  List the default similar options
+  """
+  def default_similar_options, do: @default_similar_options
+
+  @doc """
+  Find similar cards using a vector embedding
+  NO warranty is provided including fitness for purpose
+  Options may be set to filter the results
+
+  Options:
+  - `limit` - an integer max number of results to return, or `:all`
+  - `sets` - a list of acceptable sets from which to select, or `:all`
+  - `same_class` - a boolean to indicate whether the same class or "NEUTRAL"
+  - `same_cost` - a boolean to indicate whether to filter by the same card cost
+  - `same_type` - a booleanr to indicate whether to filter by the same card type
+
+  Returns a list of card maps
+  """
+  def similar_cards(card, options \\ [])
+
+  def similar_cards(%{"dbfId" => match_dbf} = card, options) do
+    opt = Keyword.merge(@default_similar_options, options)
+
+    case HSCards.Repo.one(from(i in HSCards.Embedding, where: i.dbfId == ^match_dbf)) do
+      %{embedding: v} ->
+        res =
+          HSCards.Repo.all(
+            from(i in HSCards.Embedding,
+              join: c in HSCards.Card,
+              on: i.dbfId == c.dbfId,
+              where: i.dbfId != ^match_dbf,
+              select: c.full_info,
+              order_by: vec_distance_L2(i.embedding, vec_f32(v))
+            )
+          )
+          |> filter_by(card, opt)
+
+        # The filters are easier to apply once we have the card data
+        # than in trying to work out the query or sets are smallish (under 8k)
+
+        {:ok, res}
+
+      _ ->
+        {:error, "Improper card match"}
+    end
+  end
+
+  def similar_cards(_, _), do: {:error, "Improper card"}
+
+  defp filter_by(acc, _card, []), do: acc
+  # No-ops go here
+  defp filter_by(acc, card, [{:limit, :all} | rest]), do: filter_by(acc, card, rest)
+  defp filter_by(acc, card, [{:same_cost, false} | rest]), do: filter_by(acc, card, rest)
+  defp filter_by(acc, card, [{:same_class, false} | rest]), do: filter_by(acc, card, rest)
+  defp filter_by(acc, card, [{:same_type, false} | rest]), do: filter_by(acc, card, rest)
+  defp filter_by(acc, card, [{:sets, :all} | rest]), do: filter_by(acc, card, rest)
+
+  defp filter_by(acc, %{"cost" => n} = card, [{:same_cost, true} | rest]) do
+    acc
+    |> Enum.filter(fn c -> c["cost"] == n end)
+    |> filter_by(card, rest)
+  end
+
+  defp filter_by(acc, %{"cardClass" => class} = card, [{:same_class, true} | rest]) do
+    acc
+    |> Enum.filter(fn c -> c["cardClass"] in [class, "NEUTRAL"] end)
+    |> filter_by(card, rest)
+  end
+
+  defp filter_by(acc, %{"type" => type} = card, [{:same_type, true} | rest]) do
+    acc
+    |> Enum.filter(fn c -> c["type"] == type end)
+    |> filter_by(card, rest)
+  end
+
+  defp filter_by(acc, card, [{:sets, sets} | rest]) when is_list(sets) do
+    acc
+    |> Enum.filter(fn c -> c["set"] in sets end)
+    |> filter_by(card, rest)
+  end
+
+  # Limit is always processed last if it is an integer
+  defp filter_by(acc, _card, [{:limit, n}]) when is_integer(n), do: Enum.take(acc, n)
+  # We'll hope they didn't supply legal ones twice
+  defp filter_by(acc, card, [{:limit, n} | rest]) when is_integer(n),
+    do: filter_by(acc, card, rest ++ [{:limit, n}])
+
+  defp filter_by(acc, card, [_ | rest]), do: filter_by(acc, card, rest)
+
   @comparables [
     "armor",
     "attack",
@@ -29,6 +129,10 @@ defmodule HSCards.Learned do
   @cd_ms MapSet.new(@comparables)
   @embedding_size 512
 
+  @doc """
+  Generate the embeddings map for all known collectible cards.
+  This is mainly useful for the `HSCards.DB` to store them for later use
+  """
   def embeddings_map() do
     {:ambiguous, cards} = HSCards.DB.find(%{collectible: true})
 
@@ -39,7 +143,6 @@ defmodule HSCards.Learned do
 
     ordered = Map.keys(defaults) |> Enum.sort()
     prefille = List.duplicate(0.0, @embedding_size - length(ordered))
-    IO.inspect(Enum.count(ordered))
 
     Enum.reduce(filled, %{}, fn c, a ->
       Map.put(a, c["dbfId"], embedding(ordered, c, prefille))
