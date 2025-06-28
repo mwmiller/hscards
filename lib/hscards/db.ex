@@ -4,7 +4,6 @@ defmodule HSCards.DB do
   """
 
   import Ecto.Query
-  import SqliteVec.Ecto.Query
   require Logger
   alias HSCards.Learned
 

@@ -227,8 +227,8 @@ defmodule HSCards do
   defp md_format(deck) do
     format_desc =
       case deck.zodiac do
+        %{name: z} -> " (#{z})"
         nil -> ""
-        z -> " (#{z})"
       end
 
     """
@@ -510,6 +510,66 @@ defmodule HSCards do
 
       _ ->
         gather_rcs(rest, acc)
+    end
+  end
+
+  @default_mutate_options [count: 5]
+  @doc """
+  The default options to `mutate/2`
+  """
+  def default_mutate_options, do: @default_mutate_options
+
+  @doc """
+  Mutate a supplied deck into something similar-ish.
+  Will also take a deckstring for convenience
+
+  Options:
+  -  `count`: an integer expressing how many cards to change
+
+  Also can supply options for `HSCards.Learned.similar_card` to manage the way in which
+  cards are mutated.  For standard decks, the `sets` option will be automatically set on your behalf.
+  """
+  def mutate(deck, options \\ [])
+  def mutate(deck, options) when is_binary(deck), do: deck |> from_deckstring |> mutate(options)
+
+  def mutate(deck, options) do
+    sim_options =
+      case deck.zodiac do
+        %{sets: sets} -> [same_class: true, sets: Enum.map(sets, fn s -> s.code end)]
+        _ -> [same_class: true]
+      end
+
+    # If they provide their oen set info, it will override ours
+    {count, sim_opts} =
+      @default_mutate_options
+      |> Keyword.merge(sim_options)
+      |> Keyword.merge(options)
+      |> Keyword.pop(:count)
+
+    do_mutate(deck, sim_opts, %{add: [], drop: []}, count)
+  end
+
+  defp do_mutate(deck, _opts, acc, 0) do
+    Map.merge(acc, %{deck: deck, deckstring: to_deckstring(deck)})
+  end
+
+  defp do_mutate(%{maindeck: md} = deck, opts, %{add: add, drop: drop} = acc, count) do
+    [possible | rest] = Enum.shuffle(md)
+
+    case HSCards.Learned.similar_cards(possible, opts) do
+      {:error, _whatever} ->
+        do_mutate(deck, opts, acc, count)
+
+      {:ok, [card | _]} ->
+        do_mutate(
+          %{deck | maindeck: [card | rest]},
+          opts,
+          %{
+            add: [Map.merge(card, %{"count" => possible["count"]}) | add],
+            drop: [possible | drop]
+          },
+          count - 1
+        )
     end
   end
 end
