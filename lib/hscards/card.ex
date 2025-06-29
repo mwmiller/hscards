@@ -12,5 +12,6 @@ defmodule HSCards.Card do
     field(:cost, :integer)
     field(:collectible, :boolean)
     field(:rarity, :string)
+    field(:text, :string)
   end
 end

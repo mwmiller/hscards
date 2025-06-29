@@ -8,7 +8,18 @@ defmodule HSCardsDBTest do
     # This will either make it easier to debug or annoy me later
     assert [string_match: :fuzzy, query_mode: :and] = DB.default_options()
 
-    assert [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity] =
+    assert [
+             :name,
+             :dbfId,
+             :flavor,
+             :artist,
+             :mechanic,
+             :class,
+             :cost,
+             :collectible,
+             :rarity,
+             :text
+           ] =
              DB.available_fields()
 
     assert [:exact, :fuzzy] = DB.available_string_matches()
@@ -104,11 +115,11 @@ defmodule HSCardsDBTest do
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity], but got: [:nonsense]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text], but got: [:nonsense]"} =
              DB.find(%{nonsense: "baster"})
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity], but got: [\"nonsense\"]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text], but got: [\"nonsense\"]"} =
              DB.find(%{"nonsense" => "baster"})
   end
 end

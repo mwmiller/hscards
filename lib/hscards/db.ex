@@ -22,7 +22,8 @@ defmodule HSCards.DB do
     :class,
     :cost,
     :collectible,
-    :rarity
+    :rarity,
+    :text
   ]
   @doc """
   Available fields for searching cards.
@@ -180,6 +181,7 @@ defmodule HSCards.DB do
             dbfId: card["dbfId"],
             name: card["name"],
             rarity: card["rarity"],
+            text: normalize_text(card["text"]),
             collectible: card["collectible"],
             cost: card["cost"],
             class: index_classes(card),
@@ -207,4 +209,13 @@ defmodule HSCards.DB do
         :error
     end
   end
+
+  defp normalize_text(text) when is_binary(text) do
+    text
+    |> String.replace("-\n", "-")
+    |> String.replace(["\u00A0", "\u{c2}", "\n"], " ")
+    |> String.replace(~r/\s+/, " ")
+  end
+
+  defp normalize_text(_), do: ""
 end
