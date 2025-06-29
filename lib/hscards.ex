@@ -226,9 +226,9 @@ defmodule HSCards do
 
   defp md_format(deck) do
     format_desc =
-      case deck.zodiac do
+      case Map.get(deck, :zodiac) do
         %{name: z} -> " (#{z})"
-        nil -> ""
+        _ -> ""
       end
 
     """
@@ -534,7 +534,7 @@ defmodule HSCards do
 
   def mutate(deck, options) do
     sim_options =
-      case deck.zodiac do
+      case Map.get(deck, :zodiac) do
         %{sets: sets} -> [same_class: true, sets: Enum.map(sets, fn s -> s.code end)]
         _ -> [same_class: true]
       end
@@ -549,20 +549,18 @@ defmodule HSCards do
     do_mutate(deck, sim_opts, %{add: [], drop: []}, count)
   end
 
-  defp do_mutate(deck, _opts, acc, 0) do
-    Map.merge(acc, %{deck: deck, deckstring: to_deckstring(deck)})
+  defp do_mutate(deck, _opts, %{add: add, drop: drop} = acc, 0) do
+    final_deck = %{deck | maindeck: card_sort(deck.maindeck ++ (add -- drop))}
+    Map.merge(acc, %{deck: final_deck, deckstring: to_deckstring(final_deck)})
   end
 
   defp do_mutate(%{maindeck: md} = deck, opts, %{add: add, drop: drop} = acc, count) do
     [possible | rest] = Enum.shuffle(md)
 
     case HSCards.Learned.similar_cards(possible, opts) do
-      {:error, _whatever} ->
-        do_mutate(deck, opts, acc, count)
-
       {:ok, [card | _]} ->
         do_mutate(
-          %{deck | maindeck: [card | rest]},
+          %{deck | maindeck: rest},
           opts,
           %{
             add: [Map.merge(card, %{"count" => possible["count"]}) | add],
@@ -570,6 +568,9 @@ defmodule HSCards do
           },
           count - 1
         )
+
+      _ ->
+        do_mutate(deck, opts, acc, count)
     end
   end
 end
