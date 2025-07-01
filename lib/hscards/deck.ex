@@ -6,6 +6,70 @@ defmodule HSCards.Deck do
   @card_keys [:heroes, :maindeck, :sideboard]
 
   @doc """
+  Validate a deck
+  """
+  # This is focused on :wild and :standard
+  def validate(deck) when is_binary(deck) do
+    deck |> HSCards.from_deckstring() |> validate
+  end
+
+  def validate(deck) do
+    errors =
+      %{}
+      |> validate_counts(deck.maindeck)
+      |> validate_counts(Map.get(deck, :sideboard, []))
+      |> validate_size(deck)
+      |> validate_zodiac(deck)
+
+    case map_size(errors) do
+      0 -> {:valid, deck}
+      1 -> {:invalid, errors}
+    end
+  end
+
+  defp validate_zodiac(acc, %{format: :wild}), do: acc
+
+  defp validate_zodiac(acc, deck) do
+    # If we stuck in the zodiac key then we already did the check
+    case Map.get(deck, :zodiac) do
+      nil -> Map.put(acc, :non_standard_sets, deck.sets)
+      _ -> acc
+    end
+  end
+
+  defp validate_size(acc, deck) do
+    md_size =
+      case Enum.find(deck.maindeck, fn c -> c["dbfId"] == 79767 end) do
+        nil -> 30
+        _ -> 40
+      end
+
+    case size(deck) do
+      %{maindeck: ^md_size} ->
+        acc
+
+      sizing ->
+        Map.put(acc, :improper_size, sizing)
+    end
+  end
+
+  defp validate_counts(acc, cards)
+
+  defp validate_counts(acc, []), do: acc
+
+  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest]),
+    do: validate_counts(acc, rest)
+
+  defp validate_counts(acc, [%{"count" => c, "rarity" => r} | rest])
+       when r != "LEGENDARY" and c <= 2 do
+    validate_counts(acc, rest)
+  end
+
+  defp validate_counts(acc, [card | rest]) do
+    validate_counts(Map.update(acc, :improper_count, [card], fn a -> [card | a] end), rest)
+  end
+
+  @doc """
   Normalize a deck
   - Sort cards like display
   - Combine any duplicates
