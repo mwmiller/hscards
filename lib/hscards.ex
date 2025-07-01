@@ -3,7 +3,7 @@ defmodule HSCards do
   Dealing with Hearthstone cards
   """
 
-  alias HSCards.{DB, Sets}
+  alias HSCards.{DB, Deck, Sets}
 
   @doc """
   Update the card database with the latest cards from the Hearthstone JSON API.
@@ -105,16 +105,12 @@ defmodule HSCards do
 
   def to_markdown(deck) do
     mapped_sb = map_sideboard(Map.get(deck, :sideboard, []), %{})
-    sorted_deck = card_sort(deck.maindeck)
+    sorted_deck = Deck.normalize(deck)
 
     md_format(deck) <>
       md_heroes(deck.heroes) <>
       md_meta(deck) <>
       md_deck(sorted_deck, -1, mapped_sb, "")
-  end
-
-  defp card_sort(list) do
-    list |> Enum.sort_by(& &1["name"]) |> Enum.sort_by(& &1["cost"])
   end
 
   defp map_sideboard([], acc), do: acc
@@ -211,11 +207,7 @@ defmodule HSCards do
           "\n"
 
         side_cards ->
-          # We wait until here to sort since we're either
-          # already iterating over the keys or we don't need them
-          side_cards
-          |> card_sort
-          |> Enum.reduce(":\n", fn side_card, acc ->
+          Enum.reduce(side_cards, ":\n", fn side_card, acc ->
             acc <>
               "  - #{card_rcs(side_card)}#{side_card["name"]} (#{side_card["count"]}x #{side_card["cost"]} mana)\n"
           end)
@@ -550,7 +542,7 @@ defmodule HSCards do
   end
 
   defp do_mutate(deck, _opts, %{add: add, drop: drop} = acc, 0) do
-    final_deck = %{deck | maindeck: card_sort(deck.maindeck ++ (add -- drop))}
+    final_deck = Deck.normalize(%{deck | maindeck: deck.maindeck ++ (add -- drop)})
     Map.merge(acc, %{deck: final_deck, deckstring: to_deckstring(final_deck)})
   end
 
