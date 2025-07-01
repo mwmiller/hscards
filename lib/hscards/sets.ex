@@ -21,19 +21,17 @@ defmodule HSCards.Sets do
           |> Enum.map(fn line ->
             [year, animal] = String.split(line, "\t", trim: true)
             y = String.to_integer(year)
+            soy = fn s, y -> s.release_date.year == y and s.release_date.month > 2 end
 
-            [foty | roty] =
-              Enum.filter(@set_info, fn set ->
-                set.release_date.year == y
-              end)
+            [foty | roty] = Enum.filter(@set_info, fn set -> soy.(set, y) end)
 
             prev =
               Enum.filter(@set_info, fn set ->
-                set.release_date.year == y - 1 and not String.contains?(set.code, "CORE")
+                soy.(set, y - 1) and not String.contains?(set.code, "CORE")
               end)
 
             ends =
-              case Enum.find(@set_info, fn set -> set.release_date.year == y + 1 end) do
+              case Enum.find(@set_info, fn set -> soy.(set, y + 1) end) do
                 nil -> ~D[9999-12-31]
                 first -> first.release_date
               end
