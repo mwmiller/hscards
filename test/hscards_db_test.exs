@@ -18,7 +18,8 @@ defmodule HSCardsDBTest do
              :cost,
              :collectible,
              :rarity,
-             :text
+             :text,
+             :set
            ] =
              DB.available_fields()
 
@@ -91,6 +92,13 @@ defmodule HSCardsDBTest do
     assert {:ambiguous, _} = DB.find(%{cost: [1, 2, 3]})
   end
 
+  test "set search" do
+    assert {:error, "No match"} = DB.find(%{set: "MRB"})
+    assert {:ambiguous, bl} = DB.find(%{set: "WILD_WEST", collectible: true})
+    # Should be stable
+    assert length(bl) == 183
+  end
+
   test "multiple fields" do
     assert {:error, "No match"} = DB.find(%{name: "baster", rarity: "EPIC"})
 
@@ -115,11 +123,11 @@ defmodule HSCardsDBTest do
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text], but got: [:nonsense]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set], but got: [:nonsense]"} =
              DB.find(%{nonsense: "baster"})
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text], but got: [\"nonsense\"]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set], but got: [\"nonsense\"]"} =
              DB.find(%{"nonsense" => "baster"})
   end
 end
