@@ -23,7 +23,8 @@ defmodule HSCards.DB do
     :cost,
     :collectible,
     :rarity,
-    :text
+    :text,
+    :set
   ]
   @doc """
   Available fields for searching cards.
@@ -181,6 +182,7 @@ defmodule HSCards.DB do
             dbfId: card["dbfId"],
             name: card["name"],
             rarity: card["rarity"],
+            set: card["set"],
             text: normalize_text(card["text"]),
             collectible: card["collectible"],
             cost: card["cost"],
