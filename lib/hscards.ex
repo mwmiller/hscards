@@ -92,10 +92,7 @@ defmodule HSCards do
     |> Base.encode64()
   end
 
-  def to_deckstring(e) do
-    IO.inspect(e)
-    {:error, "Invalid deck format"}
-  end
+  def to_deckstring(_), do: {:error, "Invalid deck format"}
 
   @doc """
   Produce a markdown representation of a deck.
@@ -290,16 +287,14 @@ defmodule HSCards do
     stack_deck({bytes, %{format: Map.get(@formats_map, format, :undefined)}})
   end
 
-  defp build_deck(_) do
-    {:error, "Not a proper deckstring"}
-  end
+  defp build_deck(_), do: {:error, "Not a proper deckstring"}
 
   defp stack_deck({<<>>, out}), do: out
 
   defp stack_deck(inc) do
     main =
       inc
-      |> grab({:heroes, :maindeck})
+      |> grab({:heroes, :heroes})
       |> grab({:singles, :maindeck})
       |> grab({:doubles, :maindeck})
       |> grab({:multiples, :maindeck})
@@ -326,41 +321,43 @@ defmodule HSCards do
 
   defp grab({bytes, deck}, which) do
     {count, rest} = Varint.LEB128.decode(bytes)
-    grab({rest, deck}, which, count)
+    grab({rest, deck, []}, which, count)
   end
 
-  defp grab(out, _which, 0), do: out
+  defp grab({rest, deck, these}, {_, key}, 0) do
+    {rest, Map.update(deck, key, these, fn d -> d ++ these end)}
+  end
 
-  defp grab({bytes, deck}, which, count) do
+  defp grab({bytes, deck, these}, which, count) do
     {dbfId, maybemore} = Varint.LEB128.decode(bytes)
 
-    {meta, rest, key} =
+    {meta, rest} =
       case which do
         {:heroes, _} ->
-          {%{"count" => 1}, maybemore, :heroes}
+          {%{"count" => 1}, maybemore}
 
         {:singles, :maindeck} ->
-          {%{"count" => 1}, maybemore, :maindeck}
+          {%{"count" => 1}, maybemore}
 
         {:singles, :sideboard} ->
           {owner, ongoing} = Varint.LEB128.decode(maybemore)
-          {%{"count" => 1, "owner" => owner}, ongoing, :sideboard}
+          {%{"count" => 1, "owner" => owner}, ongoing}
 
         {:doubles, :maindeck} ->
-          {%{"count" => 2}, maybemore, :maindeck}
+          {%{"count" => 2}, maybemore}
 
         {:doubles, :sideboard} ->
           {owner, ongoing} = Varint.LEB128.decode(maybemore)
-          {%{"count" => 2, "owner" => owner}, ongoing, :sideboard}
+          {%{"count" => 2, "owner" => owner}, ongoing}
 
         {:multiples, :maindeck} ->
           {howmany, ongoing} = Varint.LEB128.decode(maybemore)
-          {%{"count" => howmany}, ongoing, :sideboard}
+          {%{"count" => howmany}, ongoing}
 
         {:multiples, :sideboard} ->
           {owner, ongoing} = Varint.LEB128.decode(maybemore)
           {howmany, andon} = Varint.LEB128.decode(ongoing)
-          {%{"count" => howmany, "owner" => owner}, andon, :sideboard}
+          {%{"count" => howmany, "owner" => owner}, andon}
       end
 
     card =
@@ -369,7 +366,7 @@ defmodule HSCards do
         {:error, err} -> Map.merge(%{"type" => err}, meta)
       end
 
-    grab({rest, Map.update(deck, key, [card], fn cs -> [card | cs] end)}, which, count - 1)
+    grab({rest, deck, [card | these]}, which, count - 1)
   end
 
   @stats_fields [
