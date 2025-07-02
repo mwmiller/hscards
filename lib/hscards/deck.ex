@@ -14,15 +14,17 @@ defmodule HSCards.Deck do
   end
 
   def validate(deck) do
+    proper = normalize(deck)
+
     errors =
       %{}
-      |> validate_counts(deck.maindeck)
-      |> validate_counts(Map.get(deck, :sideboard, []))
-      |> validate_size(deck)
-      |> validate_zodiac(deck)
+      |> validate_counts(proper.maindeck)
+      |> validate_counts(Map.get(proper, :sideboard, []))
+      |> validate_size(proper)
+      |> validate_zodiac(proper)
 
     case map_size(errors) do
-      0 -> {:valid, deck}
+      0 -> {:valid, proper}
       1 -> {:invalid, errors}
     end
   end
@@ -99,6 +101,8 @@ defmodule HSCards.Deck do
   end
 
   # Once they are sorted we can work out dupe protection
+  defp combine([]), do: []
+
   defp combine([c | ards]) do
     combine(ards, [c])
   end
