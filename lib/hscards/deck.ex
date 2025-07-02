@@ -4,7 +4,6 @@ defmodule HSCards.Deck do
   """
 
   @card_keys [:heroes, :maindeck, :sideboard]
-
   @doc """
   Validate a deck
   """
@@ -15,12 +14,16 @@ defmodule HSCards.Deck do
 
   def validate(deck) do
     proper = normalize(deck)
+    included = Enum.reduce(deck.maindeck, MapSet.new(), fn c, a -> MapSet.put(a, c["dbfId"]) end)
+
+    count_config = count_constraints(included)
+    size_config = size_constraints(included)
 
     errors =
       %{}
-      |> validate_counts(proper.maindeck)
-      |> validate_counts(Map.get(proper, :sideboard, []))
-      |> validate_size(proper)
+      |> validate_counts(proper.maindeck, count_config)
+      |> validate_counts(Map.get(proper, :sideboard, []), count_config)
+      |> validate_size(proper, size_config)
       |> validate_zodiac(proper)
 
     case map_size(errors) do
@@ -39,36 +42,74 @@ defmodule HSCards.Deck do
     end
   end
 
-  defp validate_size(acc, deck) do
-    md_size =
-      case Enum.find(deck.maindeck, fn c -> c["dbfId"] == 79767 end) do
-        nil -> 30
-        _ -> 40
-      end
-
+  defp validate_size(acc, deck, {size, why}) do
     case size(deck) do
-      %{maindeck: ^md_size} ->
+      %{maindeck: ^size} ->
         acc
 
       sizing ->
-        Map.put(acc, :improper_size, sizing)
+        Map.merge(acc, %{improper_size: sizing, size_constraint: why})
     end
   end
 
-  defp validate_counts(acc, cards)
+  defp size_constraints(included) do
+    # These are only different versionof Renathal at present but I am
+    # Making it flexible for later
+    {dsc, dsms} =
+      HSCards.DB.find(%{text: "deck_size", collectible: true})
+      |> then(fn {:ambiguous, cards} -> cards end)
+      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
+        dbf = c["dbfId"]
+        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
+      end)
 
-  defp validate_counts(acc, []), do: acc
+    case MapSet.intersection(dsms, included) |> MapSet.to_list() do
+      [] ->
+        {30, []}
 
-  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest]),
-    do: validate_counts(acc, rest)
+      [adjust] ->
+        card = dsc[adjust]
 
-  defp validate_counts(acc, [%{"count" => c, "rarity" => r} | rest])
-       when r != "LEGENDARY" and c <= 2 do
-    validate_counts(acc, rest)
+        # This probably needs more consideration later
+        case Regex.named_captures(~r/(?<count>\d+)/, card["text"]) do
+          %{"count" => c} -> {String.to_integer(c), card}
+          _ -> {30, card}
+        end
+    end
   end
 
-  defp validate_counts(acc, [card | rest]) do
-    validate_counts(Map.update(acc, :improper_count, [card], fn a -> [card | a] end), rest)
+  defp validate_counts(acc, cards, config)
+
+  defp validate_counts(acc, [], _), do: acc
+
+  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest], config),
+    do: validate_counts(acc, rest, config)
+
+  defp validate_counts(acc, [%{"count" => c, "rarity" => r} | rest], {max_count, _} = config)
+       when r != "LEGENDARY" and c <= max_count do
+    validate_counts(acc, rest, config)
+  end
+
+  defp validate_counts(acc, [card | rest], {_, constraint} = config) do
+    acc
+    |> Map.put(:count_constraint, constraint)
+    |> Map.update(:improper_count, [card], fn a -> [card | a] end)
+    |> validate_counts(rest, config)
+  end
+
+  defp count_constraints(included) do
+    {hlc, hlms} =
+      HSCards.DB.find(%{text: "no duplicates", collectible: true})
+      |> then(fn {:ambiguous, cards} -> cards end)
+      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
+        dbf = c["dbfId"]
+        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
+      end)
+
+    case MapSet.intersection(hlms, included) |> MapSet.to_list() do
+      [] -> {2, []}
+      list -> {1, Enum.map(list, fn id -> hlc[id] end)}
+    end
   end
 
   @doc """
