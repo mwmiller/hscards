@@ -14,16 +14,17 @@ defmodule HSCards.Deck do
 
   def validate(deck) do
     proper = normalize(deck)
-    included = Enum.reduce(deck.maindeck, MapSet.new(), fn c, a -> MapSet.put(a, c["dbfId"]) end)
 
-    count_config = count_constraints(included)
-    size_config = size_constraints(included)
+    constraints =
+      deck.maindeck
+      |> Enum.reduce(MapSet.new(), fn c, a -> MapSet.put(a, c["dbfId"]) end)
+      |> included_constraints()
 
-    errors =
-      %{}
-      |> validate_counts(proper.maindeck, count_config)
-      |> validate_counts(Map.get(proper, :sideboard, []), count_config)
-      |> validate_size(proper, size_config)
+    {errors, _} =
+      {%{}, constraints}
+      |> validate_counts(proper.maindeck)
+      |> validate_counts(Map.get(proper, :sideboard, []))
+      |> validate_size(proper)
       |> validate_zodiac(proper)
 
     case map_size(errors) do
@@ -32,27 +33,32 @@ defmodule HSCards.Deck do
     end
   end
 
+  defp included_constraints(included) do
+    {constraints, _} = {%{}, included} |> count_constraints() |> size_constraints
+    constraints
+  end
+
   defp validate_zodiac(acc, %{format: :wild}), do: acc
 
-  defp validate_zodiac(acc, deck) do
+  defp validate_zodiac({acc, constraints}, deck) do
     # If we stuck in the zodiac key then we already did the check
     case Map.get(deck, :zodiac) do
-      nil -> Map.put(acc, :non_standard_sets, deck.sets)
-      _ -> acc
+      nil -> {Map.put(acc, :non_standard_sets, deck.sets), constraints}
+      _ -> {acc, constraints}
     end
   end
 
-  defp validate_size(acc, deck, {size, why}) do
+  defp validate_size({acc, %{max_size: size, size_constraint: why} = cons}, deck) do
     case size(deck) do
       %{maindeck: ^size} ->
-        acc
+        {acc, cons}
 
       sizing ->
-        Map.merge(acc, %{improper_size: sizing, size_constraint: why})
+        {Map.merge(acc, %{improper_size: sizing, size_constraint: why}), cons}
     end
   end
 
-  defp size_constraints(included) do
+  defp size_constraints({acc, included}) do
     # These are only different versionof Renathal at present but I am
     # Making it flexible for later
     {dsc, dsms} =
@@ -63,41 +69,42 @@ defmodule HSCards.Deck do
         {Map.put(m, dbf, c), MapSet.put(s, dbf)}
       end)
 
-    case MapSet.intersection(dsms, included) |> MapSet.to_list() do
-      [] ->
-        {30, []}
+    our_map =
+      case MapSet.intersection(dsms, included) |> MapSet.to_list() do
+        [] ->
+          %{max_size: 30, size_constraint: []}
 
-      [adjust] ->
-        card = dsc[adjust]
+        [adjust] ->
+          card = dsc[adjust]
 
-        # This probably needs more consideration later
-        case Regex.named_captures(~r/(?<count>\d+)/, card["text"]) do
-          %{"count" => c} -> {String.to_integer(c), card}
-          _ -> {30, card}
-        end
-    end
+          # This probably needs more consideration later
+          case Regex.named_captures(~r/(?<count>\d+)/, card["text"]) do
+            %{"count" => c} -> %{max_size: String.to_integer(c), size_constraint: [card]}
+            _ -> %{max_size: 30, size_constraint: [card]}
+          end
+      end
+
+    {Map.merge(acc, our_map), included}
   end
 
-  defp validate_counts(acc, cards, config)
+  defp validate_counts(acc, []), do: acc
 
-  defp validate_counts(acc, [], _), do: acc
+  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest]),
+    do: validate_counts(acc, rest)
 
-  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest], config),
-    do: validate_counts(acc, rest, config)
-
-  defp validate_counts(acc, [%{"count" => c, "rarity" => r} | rest], {max_count, _} = config)
-       when r != "LEGENDARY" and c <= max_count do
-    validate_counts(acc, rest, config)
+  defp validate_counts({_, %{max_count: mc}} = acc, [%{"count" => c, "rarity" => r} | rest])
+       when r != "LEGENDARY" and c <= mc do
+    validate_counts(acc, rest)
   end
 
-  defp validate_counts(acc, [card | rest], {_, constraint} = config) do
+  defp validate_counts({acc, %{count_constraint: cc} = cons}, [card | rest]) do
     acc
-    |> Map.put(:count_constraint, constraint)
+    |> Map.put(:count_constraint, cc)
     |> Map.update(:improper_count, [card], fn a -> [card | a] end)
-    |> validate_counts(rest, config)
+    |> then(fn a -> validate_counts({a, cons}, rest) end)
   end
 
-  defp count_constraints(included) do
+  defp count_constraints({acc, included}) do
     {hlc, hlms} =
       HSCards.DB.find(%{text: "no duplicates", collectible: true})
       |> then(fn {:ambiguous, cards} -> cards end)
@@ -106,10 +113,13 @@ defmodule HSCards.Deck do
         {Map.put(m, dbf, c), MapSet.put(s, dbf)}
       end)
 
-    case MapSet.intersection(hlms, included) |> MapSet.to_list() do
-      [] -> {2, []}
-      list -> {1, Enum.map(list, fn id -> hlc[id] end)}
-    end
+    our_map =
+      case MapSet.intersection(hlms, included) |> MapSet.to_list() do
+        [] -> %{max_count: 2, count_constraint: []}
+        list -> %{max_count: 1, count_constraint: Enum.map(list, fn id -> hlc[id] end)}
+      end
+
+    {Map.merge(acc, our_map), included}
   end
 
   @doc """
