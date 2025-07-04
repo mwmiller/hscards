@@ -23,15 +23,21 @@ defmodule HSCards.Deck do
       |> validate_counts(Map.get(proper, :sideboard, []))
       |> validate_size(proper)
       |> validate_zodiac(proper)
+      |> validate_cost(proper.maindeck)
 
     case map_size(errors) do
       0 -> {:valid, proper}
-      1 -> {:invalid, errors}
+      _ -> {:invalid, errors}
     end
   end
 
   defp included_constraints(included) do
-    {constraints, _} = {%{}, included} |> count_constraints() |> size_constraints
+    {constraints, _} =
+      {%{}, included}
+      |> count_constraints
+      |> size_constraints
+      |> cost_constraints
+
     {%{}, constraints}
   end
 
@@ -43,6 +49,78 @@ defmodule HSCards.Deck do
       nil -> {Map.put(acc, :non_standard_sets, deck.sets), constraints}
       _ -> {acc, constraints}
     end
+  end
+
+  defp validate_cost(pass, []), do: pass
+
+  defp validate_cost({acc, %{cost: cfn} = cons}, [card | rest]) do
+    na =
+      case cfn.(card) do
+        :ok -> acc
+        list -> Map.update(acc, :bad_cost, list, fn a -> a ++ list end)
+      end
+
+    validate_cost({na, cons}, rest)
+  end
+
+  defp cost_constraints({acc, included}) do
+    # These are only different versionof Renathal at present but I am
+    # Making it flexible for later
+    {ccc, ccms} =
+      HSCards.DB.find(%{text: "Cost cards", collectible: true})
+      |> then(fn {:ambiguous, cards} -> cards end)
+      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
+        dbf = c["dbfId"]
+        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
+      end)
+
+    our_map =
+      case MapSet.intersection(ccms, included) |> MapSet.to_list() do
+        [] -> %{cost: fn _ -> :ok end}
+        list -> %{cost: cost_fn(list, ccc)}
+      end
+
+    {Map.merge(acc, our_map), included}
+  end
+
+  defp cost_fn(dbfs, ccc, conds \\ %{})
+
+  defp cost_fn([], _, conds) do
+    fns =
+      Enum.reduce(conds, [], fn
+        {:odd, cards}, a -> [fn cost -> if rem(cost, 2) == 0, do: cards, else: :ok end | a]
+        {:even, cards}, a -> [fn cost -> if rem(cost, 2) == 1, do: cards, else: :ok end | a]
+        {num, cards}, a -> [fn cost -> if cost == num, do: cards, else: :ok end | a]
+      end)
+
+    fn c ->
+      Enum.reduce(fns, [], fn f, a ->
+        case f.(Map.get(c, "cost", -1)) do
+          :ok -> a
+          cards -> [{c, cards} | a]
+        end
+      end)
+    end
+  end
+
+  defp cost_fn([dbf | rest], ccc, conds) do
+    ocard = ccc[dbf]
+    oct = ocard["text"]
+
+    # Only one of these should match, but we do them individually for reasons
+    c0 =
+      case Regex.named_captures(~r/only (?<parity>odd|even)/, oct) do
+        %{"parity" => p} -> Map.update(conds, String.to_atom(p), [ocard], fn a -> [ocard | a] end)
+        _ -> conds
+      end
+
+    c1 =
+      case Regex.named_captures(~r/no (?<num>\d+)/, oct) do
+        %{"num" => n} -> Map.update(c0, String.to_integer(n), [ocard], fn a -> [ocard | a] end)
+        _ -> c0
+      end
+
+    cost_fn(rest, ccc, c1)
   end
 
   defp validate_size({acc, %{size: size, size_constraint: why} = cons}, deck) do
