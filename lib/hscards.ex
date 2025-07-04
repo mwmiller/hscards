@@ -502,7 +502,7 @@ defmodule HSCards do
     end
   end
 
-  @default_mutate_options [count: 5]
+  @default_mutate_options [count: 5, retries: 5]
   @doc """
   The default options to `mutate/2`
   """
@@ -514,6 +514,7 @@ defmodule HSCards do
 
   Options:
   -  `count`: an integer expressing how many cards to change
+  - `reries`: an integer expressing how many times to retry if the result is invalid
 
   Also can supply options for `HSCards.Learned.similar_card` to manage the way in which
   cards are mutated.  For standard decks, the `sets` option will be automatically set on your behalf.
@@ -538,18 +539,26 @@ defmodule HSCards do
     do_mutate(deck, sim_opts, %{add: [], drop: []}, count)
   end
 
-  defp do_mutate(deck, _opts, %{add: add, drop: drop} = acc, 0) do
-    final_deck = Deck.normalize(%{deck | maindeck: deck.maindeck ++ (add -- drop)})
-    Map.merge(acc, %{deck: final_deck, deckstring: to_deckstring(final_deck)})
+  defp do_mutate(deck, opts, %{add: add, drop: drop} = acc, 0) do
+    case Deck.validate(%{deck | maindeck: (deck.maindeck ++ add) -- drop}) do
+      {:invalid, how} ->
+        case Keyword.get_and_update(opts, :retries, fn v -> {v, v - 1} end) do
+          {1, _} -> {:failure, how}
+          {_, newopts} -> mutate(deck, newopts)
+        end
+
+      {:valid, final_deck} ->
+        Map.merge(acc, %{deck: final_deck, deckstring: to_deckstring(final_deck)})
+    end
   end
 
   defp do_mutate(%{maindeck: md} = deck, opts, %{add: add, drop: drop} = acc, count) do
-    [possible | rest] = Enum.shuffle(md)
+    possible = Enum.random(md)
 
     case HSCards.Learned.similar_cards(possible, opts) do
       {:ok, [card | _]} ->
         do_mutate(
-          %{deck | maindeck: rest},
+          deck,
           opts,
           %{
             add: [Map.merge(card, %{"count" => possible["count"]}) | add],
