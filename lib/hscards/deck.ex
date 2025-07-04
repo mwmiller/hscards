@@ -15,13 +15,10 @@ defmodule HSCards.Deck do
   def validate(deck) do
     proper = normalize(deck)
 
-    constraints =
+    {errors, _} =
       deck.maindeck
       |> Enum.reduce(MapSet.new(), fn c, a -> MapSet.put(a, c["dbfId"]) end)
       |> included_constraints()
-
-    {errors, _} =
-      {%{}, constraints}
       |> validate_counts(proper.maindeck)
       |> validate_counts(Map.get(proper, :sideboard, []))
       |> validate_size(proper)
@@ -35,7 +32,7 @@ defmodule HSCards.Deck do
 
   defp included_constraints(included) do
     {constraints, _} = {%{}, included} |> count_constraints() |> size_constraints
-    constraints
+    {%{}, constraints}
   end
 
   defp validate_zodiac(acc, %{format: :wild}), do: acc
