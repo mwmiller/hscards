@@ -45,7 +45,7 @@ defmodule HSCards.Deck do
     end
   end
 
-  defp validate_size({acc, %{max_size: size, size_constraint: why} = cons}, deck) do
+  defp validate_size({acc, %{size: size, size_constraint: why} = cons}, deck) do
     case size(deck) do
       %{maindeck: ^size} ->
         {acc, cons}
@@ -59,7 +59,7 @@ defmodule HSCards.Deck do
     # These are only different versionof Renathal at present but I am
     # Making it flexible for later
     {dsc, dsms} =
-      HSCards.DB.find(%{text: "deck_size", collectible: true})
+      HSCards.DB.find(%{text: "deck size", collectible: true})
       |> then(fn {:ambiguous, cards} -> cards end)
       |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
         dbf = c["dbfId"]
@@ -69,15 +69,15 @@ defmodule HSCards.Deck do
     our_map =
       case MapSet.intersection(dsms, included) |> MapSet.to_list() do
         [] ->
-          %{max_size: 30, size_constraint: []}
+          %{size: 30, size_constraint: []}
 
         [adjust] ->
           card = dsc[adjust]
 
           # This probably needs more consideration later
           case Regex.named_captures(~r/(?<count>\d+)/, card["text"]) do
-            %{"count" => c} -> %{max_size: String.to_integer(c), size_constraint: [card]}
-            _ -> %{max_size: 30, size_constraint: [card]}
+            %{"count" => c} -> %{size: String.to_integer(c), size_constraint: [card]}
+            _ -> %{size: 30, size_constraint: [card]}
           end
       end
 
