@@ -5,7 +5,7 @@ defmodule HSCards.DB do
 
   import Ecto.Query
   require Logger
-  alias HSCards.Learned
+  alias HSCards.{Evaluate, Learned}
 
   @default_options [string_match: :fuzzy, query_mode: :and]
   @doc """
@@ -146,27 +146,6 @@ defmodule HSCards.DB do
     end
   end
 
-  # Extract class data from the downloaded card data.
-  # If it has classes set, use that, otherwise use cardClass.
-  # some other modes don't have this, but I don't care about those
-  defp index_classes(%{"classes" => classes}) do
-    array_to_index_string(classes)
-  end
-
-  defp index_classes(%{"cardClass" => cc}) do
-    cc
-  end
-
-  defp index_classes(_), do: ""
-
-  # We need something againt which we can do string comparisons
-  # We never return this so it can use this unprntable format
-  defp array_to_index_string(array) when is_list(array) do
-    Enum.join(array, <<2>>)
-  end
-
-  defp array_to_index_string(_), do: ""
-
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
   @doc """
     Fetches the latest cards from the Hearthstone JSON API and updates the local database.
@@ -174,34 +153,16 @@ defmodule HSCards.DB do
   def update_from_sources do
     with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
       json
-      |> to_string()
-      |> :json.decode()
-      |> Enum.each(fn card ->
-        HSCards.Repo.insert(
-          %HSCards.Card{
-            dbfId: card["dbfId"],
-            name: card["name"],
-            rarity: card["rarity"],
-            set: card["set"],
-            text: normalize_text(card["text"]),
-            collectible: card["collectible"],
-            cost: card["cost"],
-            class: index_classes(card),
-            mechanic: array_to_index_string(card["mechanics"]),
-            artist: card["artist"],
-            flavor: card["flavor"],
-            full_info: card
-          },
-          on_conflict: :replace_all
-        )
+      |> Evaluate.json_to_entries()
+      |> Enum.chunk_every(2048)
+      |> Enum.each(fn chunk ->
+        HSCards.Repo.insert_all(HSCards.Card, chunk, on_conflict: :replace_all)
       end)
 
       Learned.embeddings_map()
-      |> Enum.each(fn {dbfId, embedding} ->
-        HSCards.Repo.insert(
-          %HSCards.Embedding{dbfId: dbfId, embedding: SqliteVec.Float32.new(embedding)},
-          on_conflict: :replace_all
-        )
+      |> Enum.chunk_every(2048)
+      |> Enum.each(fn chunk ->
+        HSCards.Repo.insert_all(HSCards.Embedding, chunk, on_conflict: :replace_all)
       end)
 
       :ok
@@ -211,13 +172,4 @@ defmodule HSCards.DB do
         :error
     end
   end
-
-  defp normalize_text(text) when is_binary(text) do
-    text
-    |> String.replace("-\n", "-")
-    |> String.replace(["\u00A0", "\u{c2}", "\n"], " ")
-    |> String.replace(~r/\s+/, " ")
-  end
-
-  defp normalize_text(_), do: ""
 end

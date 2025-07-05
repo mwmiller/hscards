@@ -144,8 +144,8 @@ defmodule HSCards.Learned do
     ordered = Map.keys(defaults) |> Enum.sort()
     prefille = List.duplicate(0.0, @embedding_size - length(ordered))
 
-    Enum.reduce(filled, %{}, fn c, a ->
-      Map.put(a, c["dbfId"], embedding(ordered, c, prefille))
+    Enum.reduce(filled, [], fn c, a ->
+      [[dbfId: c["dbfId"], embedding: SqliteVec.Float32.new(embedding(ordered, c, prefille))] | a]
     end)
   end
 
