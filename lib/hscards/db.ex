@@ -24,7 +24,8 @@ defmodule HSCards.DB do
     :collectible,
     :rarity,
     :text,
-    :set
+    :set,
+    :constraint
   ]
   @doc """
   Available fields for searching cards.

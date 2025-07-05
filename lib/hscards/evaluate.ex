@@ -11,20 +11,25 @@ defmodule HSCards.Evaluate do
     |> to_string
     |> :json.decode()
     |> Enum.reduce([], fn card, acc ->
+      norm_text = normalize_text(card["text"])
+
+      constraint = HSCards.Constraints.for_card_text(norm_text)
+
       [
         [
           dbfId: card["dbfId"],
           name: card["name"],
           rarity: card["rarity"],
           set: card["set"],
-          text: normalize_text(card["text"]),
+          text: norm_text,
           collectible: boolean(card["collectible"]),
           cost: card["cost"],
           class: index_classes(card),
           mechanic: array_to_index_string(card["mechanics"]),
           artist: not_null(card["artist"]),
           flavor: not_null(card["flavor"]),
-          full_info: card
+          constraint: constraint,
+          full_info: Map.merge(card, %{"text" => norm_text, "constraint" => constraint})
         ]
         | acc
       ]

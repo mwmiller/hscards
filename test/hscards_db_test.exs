@@ -19,7 +19,8 @@ defmodule HSCardsDBTest do
              :collectible,
              :rarity,
              :text,
-             :set
+             :set,
+             :constraint
            ] =
              DB.available_fields()
 
@@ -123,11 +124,11 @@ defmodule HSCardsDBTest do
     assert {:error, ^options_msg} = DB.find(%{name: "baster"}, query_mode: :invalid)
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set], but got: [:nonsense]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set, :constraint], but got: [:nonsense]"} =
              DB.find(%{nonsense: "baster"})
 
     assert {:error,
-            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set], but got: [\"nonsense\"]"} =
+            "Invalid search fields. Available fields: [:name, :dbfId, :flavor, :artist, :mechanic, :class, :cost, :collectible, :rarity, :text, :set, :constraint], but got: [\"nonsense\"]"} =
              DB.find(%{"nonsense" => "baster"})
   end
 end

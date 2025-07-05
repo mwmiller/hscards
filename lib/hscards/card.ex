@@ -14,5 +14,6 @@ defmodule HSCards.Card do
     field(:rarity, :string)
     field(:text, :string)
     field(:set, :string)
+    field(:constraint, :string)
   end
 end
