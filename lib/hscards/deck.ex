@@ -3,6 +3,8 @@ defmodule HSCards.Deck do
   Functions for dealing with deck maps
   """
 
+  alias HSCards.Constraints
+
   @card_keys [:heroes, :maindeck, :sideboard]
   @doc """
   Validate a deck
@@ -15,186 +17,40 @@ defmodule HSCards.Deck do
   def validate(deck) do
     proper = normalize(deck)
 
-    {errors, _} =
+    vres =
       deck.maindeck
-      |> Enum.reduce(MapSet.new(), fn c, a -> MapSet.put(a, c["dbfId"]) end)
-      |> included_constraints()
-      |> validate_counts(proper.maindeck)
-      |> validate_counts(Map.get(proper, :sideboard, []))
-      |> validate_size(proper)
-      |> validate_zodiac(proper)
-      |> validate_cost(proper.maindeck)
+      |> gather_deck_info
+      |> Constraints.verify()
 
-    case map_size(errors) do
-      0 -> {:valid, proper}
-      _ -> {:invalid, errors}
+    case vres do
+      :valid -> {:valid, proper}
+      other -> other
     end
   end
 
-  defp included_constraints(included) do
-    {constraints, _} =
-      {%{}, included}
-      |> count_constraints
-      |> size_constraints
-      |> cost_constraints
-
-    {%{}, constraints}
+  defp gather_deck_info(deck) do
+    keys = Constraints.keys()
+    do_deck_info(deck, keys, %{})
   end
 
-  defp validate_zodiac(acc, %{format: :wild}), do: acc
+  defp do_deck_info([], _keys, info), do: info
 
-  defp validate_zodiac({acc, constraints}, deck) do
-    # If we stuck in the zodiac key then we already did the check
-    case Map.get(deck, :zodiac) do
-      nil -> {Map.put(acc, :non_standard_sets, deck.sets), constraints}
-      _ -> {acc, constraints}
-    end
+  defp do_deck_info([card | rest], keys, info) do
+    ni = Enum.reduce(keys, info, fn k, a -> second_level_update(a, k, card[k], card["dbfId"]) end)
+    do_deck_info(rest, keys, ni)
   end
 
-  defp validate_cost(pass, []), do: pass
+  # Kernel.update_in/3 is more general, but doesn't do what I want exactly
+  defp second_level_update(map, _, nil, _), do: map
 
-  defp validate_cost({acc, %{cost: cfn} = cons}, [card | rest]) do
-    na =
-      case cfn.(card) do
-        :ok -> acc
-        list -> Map.update(acc, :bad_cost, list, fn a -> a ++ list end)
-      end
-
-    validate_cost({na, cons}, rest)
+  defp second_level_update(map, fk, sk, val) when is_list(sk) do
+    Enum.reduce(sk, map, fn ssk, a -> second_level_update(a, fk, ssk, val) end)
   end
 
-  defp cost_constraints({acc, included}) do
-    # These are only different versionof Renathal at present but I am
-    # Making it flexible for later
-    {ccc, ccms} =
-      HSCards.DB.find(%{text: "Cost cards", collectible: true})
-      |> then(fn {:ambiguous, cards} -> cards end)
-      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
-        dbf = c["dbfId"]
-        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
-      end)
-
-    our_map =
-      case MapSet.intersection(ccms, included) |> MapSet.to_list() do
-        [] -> %{cost: fn _ -> :ok end}
-        list -> %{cost: cost_fn(list, ccc)}
-      end
-
-    {Map.merge(acc, our_map), included}
-  end
-
-  defp cost_fn(dbfs, ccc, conds \\ %{})
-
-  defp cost_fn([], _, conds) do
-    fns =
-      Enum.reduce(conds, [], fn
-        {:odd, cards}, a -> [fn cost -> if rem(cost, 2) == 0, do: cards, else: :ok end | a]
-        {:even, cards}, a -> [fn cost -> if rem(cost, 2) == 1, do: cards, else: :ok end | a]
-        {num, cards}, a -> [fn cost -> if cost == num, do: cards, else: :ok end | a]
-      end)
-
-    fn c ->
-      Enum.reduce(fns, [], fn f, a ->
-        case f.(Map.get(c, "cost", -1)) do
-          :ok -> a
-          cards -> [{c, cards} | a]
-        end
-      end)
-    end
-  end
-
-  defp cost_fn([dbf | rest], ccc, conds) do
-    ocard = ccc[dbf]
-    oct = ocard["text"]
-
-    # Only one of these should match, but we do them individually for reasons
-    c0 =
-      case Regex.named_captures(~r/only (?<parity>odd|even)/, oct) do
-        %{"parity" => p} -> Map.update(conds, String.to_atom(p), [ocard], fn a -> [ocard | a] end)
-        _ -> conds
-      end
-
-    c1 =
-      case Regex.named_captures(~r/no (?<num>\d+)/, oct) do
-        %{"num" => n} -> Map.update(c0, String.to_integer(n), [ocard], fn a -> [ocard | a] end)
-        _ -> c0
-      end
-
-    cost_fn(rest, ccc, c1)
-  end
-
-  defp validate_size({acc, %{size: size, size_constraint: why} = cons}, deck) do
-    case size(deck) do
-      %{maindeck: ^size} ->
-        {acc, cons}
-
-      sizing ->
-        {Map.merge(acc, %{improper_size: sizing, size_constraint: why}), cons}
-    end
-  end
-
-  defp size_constraints({acc, included}) do
-    # These are only different versionof Renathal at present but I am
-    # Making it flexible for later
-    {dsc, dsms} =
-      HSCards.DB.find(%{text: "deck size", collectible: true})
-      |> then(fn {:ambiguous, cards} -> cards end)
-      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
-        dbf = c["dbfId"]
-        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
-      end)
-
-    our_map =
-      case MapSet.intersection(dsms, included) |> MapSet.to_list() do
-        [] ->
-          %{size: 30, size_constraint: []}
-
-        [adjust] ->
-          card = dsc[adjust]
-
-          # This probably needs more consideration later
-          case Regex.named_captures(~r/(?<count>\d+)/, card["text"]) do
-            %{"count" => c} -> %{size: String.to_integer(c), size_constraint: [card]}
-            _ -> %{size: 30, size_constraint: [card]}
-          end
-      end
-
-    {Map.merge(acc, our_map), included}
-  end
-
-  defp validate_counts(acc, []), do: acc
-
-  defp validate_counts(acc, [%{"count" => 1, "rarity" => "LEGENDARY"} | rest]),
-    do: validate_counts(acc, rest)
-
-  defp validate_counts({_, %{max_count: mc}} = acc, [%{"count" => c, "rarity" => r} | rest])
-       when r != "LEGENDARY" and c <= mc do
-    validate_counts(acc, rest)
-  end
-
-  defp validate_counts({acc, %{count_constraint: cc} = cons}, [card | rest]) do
-    acc
-    |> Map.put(:count_constraint, cc)
-    |> Map.update(:improper_count, [card], fn a -> [card | a] end)
-    |> then(fn a -> validate_counts({a, cons}, rest) end)
-  end
-
-  defp count_constraints({acc, included}) do
-    {hlc, hlms} =
-      HSCards.DB.find(%{text: "no duplicates", collectible: true})
-      |> then(fn {:ambiguous, cards} -> cards end)
-      |> Enum.reduce({%{}, MapSet.new()}, fn c, {m, s} ->
-        dbf = c["dbfId"]
-        {Map.put(m, dbf, c), MapSet.put(s, dbf)}
-      end)
-
-    our_map =
-      case MapSet.intersection(hlms, included) |> MapSet.to_list() do
-        [] -> %{max_count: 2, count_constraint: []}
-        list -> %{max_count: 1, count_constraint: Enum.map(list, fn id -> hlc[id] end)}
-      end
-
-    {Map.merge(acc, our_map), included}
+  defp second_level_update(map, fk, sk, val) do
+    Map.update(map, fk, %{sk => [val]}, fn inside ->
+      Map.update(inside, sk, [val], fn p -> [val | p] end)
+    end)
   end
 
   @doc """
