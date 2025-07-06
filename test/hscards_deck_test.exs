@@ -12,6 +12,10 @@ defmodule HSCardsDeckTest do
   end
 
   test "validate" do
-    Enum.each(TestData.strings(), fn d -> assert {:valid, _deck} = Deck.validate(d) end)
+    Enum.each(TestData.strings(:valid), fn d -> assert {:valid, _deck} = Deck.validate(d) end)
+
+    Enum.each(TestData.strings(:invalid), fn d ->
+      assert {:invalid, _violations} = Deck.validate(d)
+    end)
   end
 end

@@ -83,11 +83,7 @@ defmodule HSCards.Constraints do
         :valid
 
       n ->
-        [
-          constraint: "deck size forty",
-          from: Enum.map(from, fn dbfId -> HSCards.by_dbf(dbfId) end),
-          by: "Deck size of #{n}, not 4"
-        ]
+        constraint_invalid("deck size forty", from, "Deck size of #{n}")
     end
   end
 
@@ -97,15 +93,39 @@ defmodule HSCards.Constraints do
         :valid
 
       broken ->
-        [
-          constraint: "no dupe",
-          from: dbfs_to_card_list(from),
-          by: Enum.reduce(broken, %{}, fn {k, v}, a -> Map.put(a, k, dbfs_to_card_list(v)) end)
-        ]
+        constraint_invalid("no dupe", from, broken)
     end
   end
 
+  defp verify_constraint({"only odd", from}, %{"cost" => c}) do
+    case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 0 end) do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("only odd", from, broken)
+    end
+  end
+
+  defp constraint_invalid(constraint, from, by) do
+    [
+      constraint: constraint,
+      from: dbfs_to_card_list(from),
+      by:
+        case by do
+          s when is_binary(s) ->
+            [s]
+
+          l when is_list(l) ->
+            Enum.reduce(l, %{}, fn {k, v}, a -> Map.put(a, k, dbfs_to_card_list(v)) end)
+        end
+    ]
+  end
+
   defp dbfs_to_card_list(dbfs) do
-    Enum.map(dbfs, fn dbfId -> HSCards.by_dbf(dbfId) end)
+    Enum.map(dbfs, fn dbfId ->
+      {:ok, c} = HSCards.by_dbf(dbfId)
+      c
+    end)
   end
 end

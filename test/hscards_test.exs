@@ -3,7 +3,7 @@ defmodule HSCardsTest do
   doctest HSCards
 
   test "deckstrings round trip" do
-    Enum.each(TestData.strings(), fn s ->
+    Enum.each(TestData.strings(:all), fn s ->
       assert s == s |> HSCards.from_deckstring() |> HSCards.to_deckstring()
     end)
   end
