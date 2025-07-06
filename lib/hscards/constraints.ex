@@ -107,6 +107,16 @@ defmodule HSCards.Constraints do
     end
   end
 
+  defp verify_constraint({"only even", from}, %{"cost" => c}) do
+    case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 1 end) do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("only odd", from, broken)
+    end
+  end
+
   defp constraint_invalid(constraint, from, by) do
     [
       constraint: constraint,

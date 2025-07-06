@@ -19,7 +19,9 @@ defmodule TestData do
     },
     invalid: %{
       baku_hunter:
-        "AAEBAR8IjQHP8gKe+AKFsAP9+AOIsgTbuQSX7wQQqAKAB/gH6asCgtAD2+0D9/gDqZ8Eqp8EwawEnbAEhLIEhMkEwNMEwdMEidQEAAA="
+        "AAEBAR8IjQHP8gKe+AKFsAP9+AOIsgTbuQSX7wQQqAKAB/gH6asCgtAD2+0D9/gDqZ8Eqp8EwawEnbAEhLIEhMkEwNMEwdMEidQEAAA=",
+      even_warrior:
+        "AAEBAQcGzfQCwLkD/cQFpfYF+skGquoGDM/nAri5A/mMBPqMBO/OBI7UBJD7BaH7BYuUBpyeBp+eBtW6BgABA/qwA/3EBaPvBP3EBdGeBv3EBQAA"
     }
   }
 
