@@ -21,7 +21,7 @@ defmodule HSCards.Constraints do
       text_match: "Your deck size and starting Health are 40.",
       constrained: "count"
     },
-    "none" => %{text_match: "", constrained: "constraint"}
+    "none" => %{constrained: "constraint"}
   }
   @keys @constraints
         |> Enum.reduce(MapSet.new(), fn {_, %{constrained: c}}, a -> MapSet.put(a, c) end)
@@ -41,14 +41,17 @@ defmodule HSCards.Constraints do
   @doc """
   Emit constraint for given card text
   """
-  def for_card_text(card)
+  def for_card_text(card_text)
 
   def for_card_text(t) when is_binary(t) do
     # Should only be one
-    {constraint, _} =
-      Enum.find(@constraints, fn {_, %{text_match: tm}} -> String.contains?(t, tm) end)
-
-    constraint
+    case Enum.find(@constraints, fn
+           {_, %{text_match: tm}} -> String.contains?(t, tm)
+           _ -> false
+         end) do
+      nil -> "none"
+      {constraint, _meta} -> constraint
+    end
   end
 
   def for_card_text(_), do: :none
