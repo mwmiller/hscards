@@ -5,7 +5,7 @@ defmodule HSCards.Constraints do
   # String keys for less marshalling
   # This associates with the functions, we'll see if we can find a way to combine
   @constraints %{
-    "ten different costs" => %{text_match: "10 cards of different Costs", constrained: "cost"},
+    "ten different costs" => %{text_match: "10 cards of different Costs", constrained: ["cost"]},
     "least expensive minion" => %{
       text_match: "less than every minon",
       constrained: ["cost", "type"]
@@ -14,23 +14,28 @@ defmodule HSCards.Constraints do
       text_match: "more than every minion",
       constrained: ["cost", "type"]
     },
-    "no dupe" => %{text_match: "no duplicates", constrained: "count"},
-    "no minion" => %{text_match: "deck has no minions", constrained: "type"},
-    "no neutral" => %{text_match: "no Neutral cards", constrained: "cardClass"},
-    "no two cost" => %{text_match: "no 2-Cost cards", constrained: "cost"},
-    "no three cost" => %{text_match: "no 3-Cost cards", constrained: "cost"},
-    "no four cost" => %{text_match: "no 4-Cost cards", constrained: "cost"},
-    "only even" => %{text_match: "only even-Cost cards", constrained: "cost"},
-    "only odd" => %{text_match: "only odd-Cost cards", constrained: "cost"},
-    "same type" => %{text_match: "deck shares a minion type", constrained: ["races", "type"]},
+    "no dupe" => %{text_match: "no duplicates", constrained: ["count"]},
+    "no minion" => %{text_match: "deck has no minions", constrained: ["type"]},
+    "no neutral" => %{text_match: "no Neutral cards", constrained: ["cardClass"]},
+    "no two cost" => %{text_match: "no 2-Cost cards", constrained: ["cost"]},
+    "no three cost" => %{text_match: "no 3-Cost cards", constrained: ["cost"]},
+    "no four cost" => %{text_match: "no 4-Cost cards", constrained: ["cost"]},
+    "only even" => %{text_match: "only even-Cost cards", constrained: ["cost"]},
+    "only odd" => %{text_match: "only odd-Cost cards", constrained: ["cost"]},
+    "all minions same type" => %{
+      text_match: "deck shares a minion type",
+      constrained: ["races", "type"]
+    },
     "deck size forty" => %{
       text_match: "Your deck size and starting Health are 40.",
-      constrained: "count"
+      constrained: ["count"]
     },
-    "none" => %{constrained: "constraint"}
+    "none" => %{constrained: ["constraint"]}
   }
   @keys @constraints
-        |> Enum.reduce(MapSet.new(), fn {_, %{constrained: c}}, a -> MapSet.put(a, c) end)
+        |> Enum.reduce(MapSet.new(), fn {_, %{constrained: c}}, a ->
+          Enum.reduce(c, a, fn e, acc -> MapSet.put(acc, e) end)
+        end)
         |> MapSet.to_list()
 
   @doc """
@@ -140,6 +145,34 @@ defmodule HSCards.Constraints do
 
       broken ->
         constraint_invalid("no neutral", from, broken)
+    end
+  end
+
+  defp verify_constraint({"ten different costs", from}, %{"cost" => c}) do
+    case Enum.count(c) do
+      10 ->
+        :valid
+
+      n ->
+        constraint_invalid("ten different costs", from, "Deck has #{n} different costs")
+    end
+  end
+
+  # Will this ever cause a pattern match error?  I don't think so, but we'll see.
+  defp verify_constraint({"all minions same type", from}, %{
+         "type" => %{"MINION" => m},
+         "races" => r
+       }) do
+    case Enum.any?(r, fn {_, rm} -> from == m -- rm end) do
+      true ->
+        :valid
+
+      false ->
+        constraint_invalid(
+          "all minions same type",
+          from,
+          "Deck has at least one minion without the proper tag."
+        )
     end
   end
 

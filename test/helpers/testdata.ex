@@ -19,13 +19,16 @@ defmodule TestData do
       no_minion:
         "AAECAf0EArqnBpKDBw79ngTboQWxoAblpgbmpgazpwbluAbFugaBvwaxzgbL0AaF5gaG5gbxkQcAAA==",
       racist_paladin:
-        "AAEBAZ8FCtwDyLgD/LgDhMEDk9ADv9EDwNEDw9ED4NEDiN4DCpuuA5yuA8q4A/24A+q5A+u5A+y5A8rBA57NA8rRAwAA"
+        "AAEBAZ8FCtwDyLgD/LgDhMEDk9ADv9EDwNEDw9ED4NEDiN4DCpuuA5yuA8q4A/24A+q5A+u5A+y5A8rBA57NA8rRAwAA",
+      esho_hunter: "AAECAR8CmKAEwrEHDqmfBOD4BcufBuelBuqlBvGlBvKlBv+lBsyWB96WB+CWB+KWB9CbB/anBwAA"
     },
     invalid: %{
       baku_hunter:
         "AAEBAR8IjQHP8gKe+AKFsAP9+AOIsgTbuQSX7wQQqAKAB/gH6asCgtAD2+0D9/gDqZ8Eqp8EwawEnbAEhLIEhMkEwNMEwdMEidQEAAA=",
       even_warrior:
-        "AAEBAQcGzfQCwLkD/cQFpfYF+skGquoGDM/nAri5A/mMBPqMBO/OBI7UBJD7BaH7BYuUBpyeBp+eBtW6BgABA/qwA/3EBaPvBP3EBdGeBv3EBQAA"
+        "AAEBAQcGzfQCwLkD/cQFpfYF+skGquoGDM/nAri5A/mMBPqMBO/OBI7UBJD7BaH7BYuUBpyeBp+eBtW6BgABA/qwA/3EBaPvBP3EBdGeBv3EBQAA",
+      elise_the_nav:
+        "AAECAaa0BgqAoATHpAaopQbR5Qbt6gailgfslgeCmAf0qgeKsQcKy58GpKcG0dAGltMGltYG+OIGx4cHnZYH5pYH0ZsHAAEC9rMGx6QG97MGx6QGAAA="
     }
   }
 
