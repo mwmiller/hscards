@@ -108,6 +108,7 @@ defmodule HSCards.Learned do
     "attack",
     "cardClass",
     "classes",
+    "constraint",
     "cost",
     "dbfId",
     "durability",
