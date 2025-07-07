@@ -15,7 +15,11 @@ defmodule TestData do
       raptor:
         "AAECAaIHCoukBb2+BrnBBvTJBpfXBvbdBqLhBszhBqrqBsODBwr2nwT3nwS2tQaGvwbpyQaW1gaL3Aae3Aaa5gbk6gYAAA==",
       pegasus:
-        "AAECAZ8FBNK5BtG/BrrOBpfXBg3JoASS1AS1ngbTngbCvgbBvwbDvwbKvwbtyQbzyQaM1gaW1gaA1wYAAA=="
+        "AAECAZ8FBNK5BtG/BrrOBpfXBg3JoASS1AS1ngbTngbCvgbBvwbDvwbKvwbtyQbzyQaM1gaW1gaA1wYAAA==",
+      no_minion:
+        "AAECAf0EArqnBpKDBw79ngTboQWxoAblpgbmpgazpwbluAbFugaBvwaxzgbL0AaF5gaG5gbxkQcAAA==",
+      racist_paladin:
+        "AAEBAZ8FCtwDyLgD/LgDhMEDk9ADv9EDwNEDw9ED4NEDiN4DCpuuA5yuA8q4A/24A+q5A+u5A+y5A8rBA57NA8rRAwAA"
     },
     invalid: %{
       baku_hunter:

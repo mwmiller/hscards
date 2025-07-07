@@ -6,17 +6,23 @@ defmodule HSCards.Constraints do
   # This associates with the functions, we'll see if we can find a way to combine
   @constraints %{
     "ten different costs" => %{text_match: "10 cards of different Costs", constrained: "cost"},
-    "least expensive minion" => %{text_match: "less than every minon", constrained: "cost"},
-    "most expensive minion" => %{text_match: "more than every minion", constrained: "cost"},
+    "least expensive minion" => %{
+      text_match: "less than every minon",
+      constrained: ["cost", "type"]
+    },
+    "most expensive minion" => %{
+      text_match: "more than every minion",
+      constrained: ["cost", "type"]
+    },
     "no dupe" => %{text_match: "no duplicates", constrained: "count"},
-    "no minon" => %{text_match: "deck has no minions", constrained: "type"},
+    "no minion" => %{text_match: "deck has no minions", constrained: "type"},
     "no neutral" => %{text_match: "no Neutral cards", constrained: "cardClass"},
     "no two cost" => %{text_match: "no 2-Cost cards", constrained: "cost"},
     "no three cost" => %{text_match: "no 3-Cost cards", constrained: "cost"},
     "no four cost" => %{text_match: "no 4-Cost cards", constrained: "cost"},
     "only even" => %{text_match: "only even-Cost cards", constrained: "cost"},
     "only odd" => %{text_match: "only odd-Cost cards", constrained: "cost"},
-    "same type" => %{text_match: "deck shares a minion type", constrained: "races"},
+    "same type" => %{text_match: "deck shares a minion type", constrained: ["races", "type"]},
     "deck size forty" => %{
       text_match: "Your deck size and starting Health are 40.",
       constrained: "count"
@@ -114,6 +120,26 @@ defmodule HSCards.Constraints do
 
       broken ->
         constraint_invalid("only odd", from, broken)
+    end
+  end
+
+  defp verify_constraint({"no minion", from}, %{"type" => t}) do
+    case Map.get(t, "MINION", []) do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("no minion", from, broken)
+    end
+  end
+
+  defp verify_constraint({"no neutral", from}, %{"cardClass" => c}) do
+    case Map.get(c, "NEUTRAL", []) do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("no neutral", from, broken)
     end
   end
 
