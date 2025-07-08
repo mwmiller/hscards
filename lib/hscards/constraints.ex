@@ -7,7 +7,7 @@ defmodule HSCards.Constraints do
   @constraints %{
     "ten different costs" => %{text_match: "10 cards of different Costs", constrained: ["cost"]},
     "least expensive minion" => %{
-      text_match: "less than every minon",
+      text_match: "less than every minion",
       constrained: ["cost", "type"]
     },
     "most expensive minion" => %{
@@ -20,6 +20,14 @@ defmodule HSCards.Constraints do
     "no two cost" => %{text_match: "no 2-Cost cards", constrained: ["cost"]},
     "no three cost" => %{text_match: "no 3-Cost cards", constrained: ["cost"]},
     "no four cost" => %{text_match: "no 4-Cost cards", constrained: ["cost"]},
+    "all nature spells" => %{
+      text_match: "each spell in your deck is Nature",
+      constrained: ["type", "spellSchool"]
+    },
+    "all shadow spells" => %{
+      text_match: "deck are all Shadow",
+      constrained: ["type", "spellSchool"]
+    },
     "only even" => %{text_match: "only even-Cost cards", constrained: ["cost"]},
     "only odd" => %{text_match: "only odd-Cost cards", constrained: ["cost"]},
     "all minions same type" => %{
@@ -72,7 +80,9 @@ defmodule HSCards.Constraints do
   def verify(%{"constraint" => cons} = di) do
     bad =
       cons
-      |> Enum.reduce([], fn c, a -> [verify_constraint(c, di) | a] end)
+      |> Enum.reduce([], fn c, a ->
+        [verify_constraint(c, di) | a]
+      end)
       |> Enum.reject(fn v -> v == :valid end)
 
     case bad do
@@ -176,6 +186,36 @@ defmodule HSCards.Constraints do
     end
   end
 
+  defp verify_constraint({"no two cost", from}, %{"cost" => c}) do
+    case Map.get(c, 2, []) -- from do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("no two cost", from, broken)
+    end
+  end
+
+  defp verify_constraint({"no three cost", from}, %{"cost" => c}) do
+    case Map.get(c, 3, []) -- from do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("no three cost", from, broken)
+    end
+  end
+
+  defp verify_constraint({"no four cost", from}, %{"cost" => c}) do
+    case Map.get(c, 4, []) -- from do
+      [] ->
+        :valid
+
+      broken ->
+        constraint_invalid("no four cost", from, broken)
+    end
+  end
+
   defp constraint_invalid(constraint, from, by) do
     [
       constraint: constraint,
@@ -186,7 +226,10 @@ defmodule HSCards.Constraints do
             [s]
 
           l when is_list(l) ->
-            Enum.reduce(l, %{}, fn {k, v}, a -> Map.put(a, k, dbfs_to_card_list(v)) end)
+            Enum.reduce(l, %{}, fn
+              {k, v}, a -> Map.put(a, k, dbfs_to_card_list(v))
+              d, a -> Map.put(a, d, dbfs_to_card_list([d]))
+            end)
         end
     ]
   end

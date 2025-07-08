@@ -23,6 +23,8 @@ defmodule TestData do
       esho_hunter: "AAECAR8CmKAEwrEHDqmfBOD4BcufBuelBuqlBvGlBvKlBv+lBsyWB96WB+CWB+KWB9CbB/anBwAA"
     },
     invalid: %{
+      princes:
+        "AAEBAZ8FKN0KghDLrAKgtwKLvQK4xwKc4gKd4gKe4gLQ9ALA/QLZ/gL5kwP9pQOezQOPzgPM6wO09gP09gOV+QPxpATlsATQvQS/4gSX7wSnkwX9xAWO9QW5/gWFjgbBnwbLnwbqqQabuAbBvwbOvwaW0wbO5Qbt5gar6gYAAAA=",
       baku_hunter:
         "AAEBAR8IjQHP8gKe+AKFsAP9+AOIsgTbuQSX7wQQqAKAB/gH6asCgtAD2+0D9/gDqZ8Eqp8EwawEnbAEhLIEhMkEwNMEwdMEidQEAAA=",
       even_warrior:
