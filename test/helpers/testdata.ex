@@ -23,7 +23,11 @@ defmodule TestData do
       esho_hunter: "AAECAR8CmKAEwrEHDqmfBOD4BcufBuelBuqlBvGlBvKlBv+lBsyWB96WB+CWB+KWB9CbB/anBwAA",
       shadowburst: "AAEBAa0GAq8Eu/cDDqEEkgWRD9HBArq2A5vNA9fOA6HoA/TxA6P3A633A42BBKfkBN2kBQAA",
       imbue_drood:
-        "AAECAZICBMzhBqqBB5KDB/KDBw2HnwSunwSA1ASB1ASiswbDugbW+gaggQfggQfigQf3gQeIgwekiQcAAA=="
+        "AAECAZICBMzhBqqBB5KDB/KDBw2HnwSunwSA1ASB1ASiswbDugbW+gaggQfggQfigQf3gQeIgwekiQcAAA==",
+      vandarr_mage:
+        "AAEBAf0EHtDsA5vwA6iKBKqKBKeNBP6eBOefBOifBKygBPWiBPuiBNykBO+kBPqsBI2yBO/TBPHTBJrUBKrUBMyTBduhBe+iBaajBYGaB5uaB6KaB6eaB9+aB/+aB4WuBwAAAA==",
+      drekthar_secrets:
+        "AAEBAR8Gj+MDj+QDu4oE25EE458EmKAEDKS5A4LQA4TiA5/sA6vsA6mNBKmfBOSfBLugBJmtBILmBq+SBwAA"
     },
     invalid: %{
       princes:

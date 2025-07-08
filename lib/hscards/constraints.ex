@@ -236,6 +236,56 @@ defmodule HSCards.Constraints do
     end
   end
 
+  defp verify_constraint({"least expensive minion", from}, %{
+         "cost" => c,
+         "type" => %{"MINION" => m}
+       }) do
+    minions = MapSet.new(m)
+    # Should only ever be one least expensive
+    [compare | _] = from
+    {cost, _} = Enum.find(c, fn {_c, i} -> compare in i end)
+
+    cheaper =
+      Enum.reduce(c, [], fn
+        {c, i}, a when c <= cost -> a ++ i
+        _, a -> a
+      end)
+      |> then(fn c -> c -- from end)
+      |> MapSet.new()
+
+    case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
+      [] -> :valid
+      broken -> constraint_invalid("least expensive minion", from, broken)
+    end
+  end
+
+  defp verify_constraint({"most expensive minion", from}, %{
+         "cost" => c,
+         "type" => %{"MINION" => m}
+       }) do
+    minions = MapSet.new(m)
+    # Should only ever be one least expensive
+    [compare | _] = from
+    {cost, _} = Enum.find(c, fn {_c, i} -> compare in i end)
+
+    cheaper =
+      Enum.reduce(c, [], fn
+        {c, i}, a when c >= cost -> a ++ i
+        _, a -> a
+      end)
+      |> then(fn c -> c -- from end)
+      |> MapSet.new()
+
+    case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
+      [] -> :valid
+      broken -> constraint_invalid("most expensive minion", from, broken)
+    end
+  end
+
+  defp verify_constraint({c, f}, _di) do
+    constraint_invalid("unhandled: #{c}", f, "Can't know")
+  end
+
   defp constraint_invalid(constraint, from, by) do
     [
       constraint: constraint,
