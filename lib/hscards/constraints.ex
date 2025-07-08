@@ -216,6 +216,26 @@ defmodule HSCards.Constraints do
     end
   end
 
+  defp verify_constraint({"all shadow spells", from}, %{
+         "type" => %{"SPELL" => st},
+         "spellSchool" => %{"SHADOW" => sss}
+       }) do
+    case st -- sss do
+      [] -> :valid
+      broken -> constraint_invalid("all shadow spells", from, broken)
+    end
+  end
+
+  defp verify_constraint({"all nature spells", from}, %{
+         "type" => %{"SPELL" => st},
+         "spellSchool" => %{"NATURE" => sss}
+       }) do
+    case st -- sss do
+      [] -> :valid
+      broken -> constraint_invalid("all nature spells", from, broken)
+    end
+  end
+
   defp constraint_invalid(constraint, from, by) do
     [
       constraint: constraint,

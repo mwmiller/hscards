@@ -20,7 +20,10 @@ defmodule TestData do
         "AAECAf0EArqnBpKDBw79ngTboQWxoAblpgbmpgazpwbluAbFugaBvwaxzgbL0AaF5gaG5gbxkQcAAA==",
       racist_paladin:
         "AAEBAZ8FCtwDyLgD/LgDhMEDk9ADv9EDwNEDw9ED4NEDiN4DCpuuA5yuA8q4A/24A+q5A+u5A+y5A8rBA57NA8rRAwAA",
-      esho_hunter: "AAECAR8CmKAEwrEHDqmfBOD4BcufBuelBuqlBvGlBvKlBv+lBsyWB96WB+CWB+KWB9CbB/anBwAA"
+      esho_hunter: "AAECAR8CmKAEwrEHDqmfBOD4BcufBuelBuqlBvGlBvKlBv+lBsyWB96WB+CWB+KWB9CbB/anBwAA",
+      shadowburst: "AAEBAa0GAq8Eu/cDDqEEkgWRD9HBArq2A5vNA9fOA6HoA/TxA6P3A633A42BBKfkBN2kBQAA",
+      imbue_drood:
+        "AAECAZICBMzhBqqBB5KDB/KDBw2HnwSunwSA1ASB1ASiswbDugbW+gaggQfggQfigQf3gQeIgwekiQcAAA=="
     },
     invalid: %{
       princes:
