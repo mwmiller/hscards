@@ -137,7 +137,60 @@ defmodule HSCards.Constraints do
           [constraint_invalid("no dupe", from, broken) | acc]
       end
 
-    verify_constraints(rest -- ["rarity count"], di, na)
+    verify_constraints(rest -- [{"rarity count", []}], di, na)
+  end
+
+  defp verify_constraints(
+         [{"rarity count", from} | rest],
+         %{"rarity" => r, "count" => c} = di,
+         acc
+       ) do
+    l = MapSet.new(r["LEGENDARY"] || [])
+
+    o =
+      r
+      |> Enum.reduce(MapSet.new(), fn
+        {"LEGENDARY", _}, a -> a
+        {_, v}, a -> v |> MapSet.new() |> MapSet.union(a)
+      end)
+
+    ones = Map.get(c, 1, []) |> MapSet.new()
+    twos = Map.get(c, 2, []) |> MapSet.new()
+    lmore = MapSet.difference(l, ones) |> MapSet.to_list()
+    omore = o |> MapSet.difference(twos) |> MapSet.difference(ones) |> MapSet.to_list()
+
+    na =
+      case lmore ++ omore do
+        [] ->
+          acc
+
+        broken ->
+          [constraint_invalid("rarity count", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
+  end
+
+  defp verify_constraints([{"rune cost", from} | rest], di, acc) do
+    rune_spread =
+      di
+      |> Map.get("runeCost", [])
+      |> Enum.reduce(%{"blood" => 0, "frost" => 0, "unholy" => 0}, fn
+        {m, _}, a -> Map.merge(a, m, fn _k, v1, v2 -> max(v1, v2) end)
+      end)
+
+    tot_runes = rune_spread |> Map.values() |> Enum.sum()
+
+    na =
+      cond do
+        tot_runes <= 3 ->
+          acc
+
+        true ->
+          [constraint_invalid("rune cost", from, "Rune spread too wide #{rune_spread}") | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
   defp verify_constraints([{"only odd", from} | rest], %{"cost" => c} = di, acc) do
@@ -166,108 +219,150 @@ defmodule HSCards.Constraints do
     verify_constraints(rest, di, [fa | acc])
   end
 
-  defp verify_constraint({"no minion", from}, %{"type" => t}) do
-    case Map.get(t, "MINION", []) do
-      [] ->
-        :valid
+  defp verify_constraints([{"no minion", from} | rest], %{"type" => t} = di, acc) do
+    na =
+      case Map.get(t, "MINION", []) do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("no minion", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no minion", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"no neutral", from}, %{"cardClass" => c}) do
-    case Map.get(c, "NEUTRAL", []) do
-      [] ->
-        :valid
+  defp verify_constraints([{"no neutral", from} | rest], %{"cardClass" => c} = di, acc) do
+    na =
+      case Map.get(c, "NEUTRAL", []) do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("no neutral", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no neutral", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"ten different costs", from}, %{"cost" => c}) do
-    case Enum.count(c) do
-      10 ->
-        :valid
+  defp verify_constraints([{"ten different costs", from} | rest], %{"cost" => c} = di, acc) do
+    na =
+      case Enum.count(c) do
+        g when g >= 10 ->
+          acc
 
-      n ->
-        constraint_invalid("ten different costs", from, "Deck has #{n} different costs")
-    end
+        n ->
+          [constraint_invalid("ten different costs", from, "Deck has #{n} different costs") | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
   # Will this ever cause a pattern match error?  I don't think so, but we'll see.
-  defp verify_constraint({"all minions same type", from}, %{
-         "type" => %{"MINION" => m},
-         "races" => r
-       }) do
+  defp verify_constraints(
+         [{"all minions same type", from} | rest],
+         %{"type" => %{"MINION" => m}, "races" => r} = di,
+         acc
+       ) do
     case Enum.any?(r, fn {_, rm} -> from == m -- rm end) do
       true ->
-        :valid
+        acc
 
       false ->
-        constraint_invalid(
-          "all minions same type",
-          from,
-          "Deck has at least one minion without the proper tag."
-        )
+        [
+          constraint_invalid(
+            "all minions same type",
+            from,
+            "Deck has at least one minion without the proper tag."
+          )
+          | acc
+        ]
     end
+
+    verify_constraints(rest, di, acc)
   end
 
-  defp verify_constraint({"no two cost", from}, %{"cost" => c}) do
-    case Map.get(c, 2, []) -- from do
-      [] ->
-        :valid
+  defp verify_constraints([{"no two cost", from} | rest], %{"cost" => c} = di, acc) do
+    na =
+      case Map.get(c, 2, []) -- from do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("no two cost", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no two cost", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"no three cost", from}, %{"cost" => c}) do
-    case Map.get(c, 3, []) -- from do
-      [] ->
-        :valid
+  defp verify_constraints([{"no three cost", from} | rest], %{"cost" => c} = di, acc) do
+    na =
+      case Map.get(c, 3, []) -- from do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("no three cost", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no three cost", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"no four cost", from}, %{"cost" => c}) do
-    case Map.get(c, 4, []) -- from do
-      [] ->
-        :valid
+  defp verify_constraints([{"no four cost", from} | rest], %{"cost" => c} = di, acc) do
+    na =
+      case Map.get(c, 4, []) -- from do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("no four cost", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no four cost", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"all shadow spells", from}, %{
-         "type" => %{"SPELL" => st},
-         "spellSchool" => %{"SHADOW" => sss}
-       }) do
-    case st -- sss do
-      [] -> :valid
-      broken -> constraint_invalid("all shadow spells", from, broken)
-    end
+  defp verify_constraints(
+         [{"all shadow spells", from} | rest],
+         %{
+           "type" => %{"SPELL" => st},
+           "spellSchool" => %{"SHADOW" => sss}
+         } = di,
+         acc
+       ) do
+    na =
+      case st -- sss do
+        [] -> acc
+        broken -> [constraint_invalid("all shadow spells", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"all nature spells", from}, %{
-         "type" => %{"SPELL" => st},
-         "spellSchool" => %{"NATURE" => sss}
-       }) do
-    case st -- sss do
-      [] -> :valid
-      broken -> constraint_invalid("all nature spells", from, broken)
-    end
+  defp verify_constraints(
+         [{"all nature spells", from} | rest],
+         %{
+           "type" => %{"SPELL" => st},
+           "spellSchool" => %{"NATURE" => sss}
+         } = di,
+         acc
+       ) do
+    na =
+      case st -- sss do
+        [] -> acc
+        broken -> [constraint_invalid("all nature spells", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"least expensive minion", from}, %{
-         "cost" => c,
-         "type" => %{"MINION" => m}
-       }) do
+  defp verify_constraints(
+         [{"least expensive minion", from} | rest],
+         %{
+           "cost" => c,
+           "type" => %{"MINION" => m}
+         } = di,
+         acc
+       ) do
     minions = MapSet.new(m)
     # Should only ever be one least expensive
     [compare | _] = from
@@ -281,16 +376,23 @@ defmodule HSCards.Constraints do
       |> then(fn c -> c -- from end)
       |> MapSet.new()
 
-    case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
-      [] -> :valid
-      broken -> constraint_invalid("least expensive minion", from, broken)
-    end
+    na =
+      case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
+        [] -> acc
+        broken -> [constraint_invalid("least expensive minion", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({"most expensive minion", from}, %{
-         "cost" => c,
-         "type" => %{"MINION" => m}
-       }) do
+  defp verify_constraints(
+         [{"most expensive minion", from} | rest],
+         %{
+           "cost" => c,
+           "type" => %{"MINION" => m}
+         } = di,
+         acc
+       ) do
     minions = MapSet.new(m)
     # Should only ever be one least expensive
     [compare | _] = from
@@ -304,14 +406,17 @@ defmodule HSCards.Constraints do
       |> then(fn c -> c -- from end)
       |> MapSet.new()
 
-    case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
-      [] -> :valid
-      broken -> constraint_invalid("most expensive minion", from, broken)
-    end
+    na =
+      case MapSet.intersection(cheaper, minions) |> MapSet.to_list() do
+        [] -> acc
+        broken -> [constraint_invalid("most expensive minion", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
   end
 
-  defp verify_constraint({c, f}, _di) do
-    constraint_invalid("unhandled: #{c}", f, "Can't know")
+  defp verify_constraints([{c, f} | rest], di, acc) do
+    verify_constraints(rest, di, [constraint_invalid("unhandled: #{c}", f, "Can't know") | acc])
   end
 
   defp constraint_invalid(constraint, from, by) do

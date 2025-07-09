@@ -30,7 +30,9 @@ defmodule TestData do
       vandarr_mage:
         "AAEBAf0EHtDsA5vwA6iKBKqKBKeNBP6eBOefBOifBKygBPWiBPuiBNykBO+kBPqsBI2yBO/TBPHTBJrUBKrUBMyTBduhBe+iBaajBYGaB5uaB6KaB6eaB9+aB/+aB4WuBwAAAA==",
       drekthar_secrets:
-        "AAEBAR8Gj+MDj+QDu4oE25EE458EmKAEDKS5A4LQA4TiA5/sA6vsA6mNBKmfBOSfBLugBJmtBILmBq+SBwAA"
+        "AAEBAR8Gj+MDj+QDu4oE25EE458EmKAEDKS5A4LQA4TiA5/sA6vsA6mNBKmfBOSfBLugBJmtBILmBq+SBwAA",
+      ss_dk:
+        "AAECAYjaBQiH9gTHpAb23QbC6Aaq6gaSgwesiAeCmAcLuLEG/7oGkMsGi9wGpdwGnuIG4eoGgf0GloIHl4IHupUHAAED6N4Gx6QG9bMGx6QG97MGx6QGAAA="
     },
     invalid: %{
       princes:
