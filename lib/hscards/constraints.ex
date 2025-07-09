@@ -38,6 +38,7 @@ defmodule HSCards.Constraints do
       text_match: "Your deck size and starting Health are 40.",
       constrained: ["count"]
     },
+    "base rules" => %{constrained: ["runeCost", "count", "rarity"]},
     "none" => %{constrained: ["constraint"]}
   }
   @keys @constraints
@@ -77,15 +78,14 @@ defmodule HSCards.Constraints do
 
   def verify(deck_info)
 
-  def verify(%{"constraint" => cons} = di) do
-    bad =
-      cons
-      |> Enum.reduce([], fn c, a ->
-        [verify_constraint(c, di) | a]
-      end)
-      |> Enum.reject(fn v -> v == :valid end)
+  # Always apply these last so we can drop ones which are not needed
+  @base_checks [{"deck size thirty", []}, {"rarity count", []}, {"rune cost", []}]
 
-    case bad do
+  def verify(%{"constraint" => cons} = di) do
+    # It's important to do the base checks last, so we can drop them if not needed
+    constraint_list = cons |> Enum.to_list() |> then(fn c -> c ++ @base_checks end)
+
+    case verify_constraints(constraint_list, di) do
       [] -> :valid
       broken -> {:invalid, broken}
     end
@@ -95,47 +95,75 @@ defmodule HSCards.Constraints do
     :valid
   end
 
-  defp verify_constraint(constraint_key_value_tuple, deck_info)
-  defp verify_constraint({"none", _}, _), do: :valid
+  defp verify_constraints(constraints, deck_info, acc \\ [])
+  defp verify_constraints([], _di, acc), do: acc
 
-  defp verify_constraint({"deck size forty", from}, %{"count" => c}) do
-    case Enum.reduce(c, 0, fn {count, cards}, a -> a + count * length(cards) end) do
-      40 ->
-        :valid
+  defp verify_constraints([{"none", _} | rest], di, acc),
+    do: verify_constraints(rest, di, acc)
 
-      n ->
-        constraint_invalid("deck size forty", from, "Deck size of #{n}")
-    end
+  defp verify_constraints([{"deck size forty", from} | rest], %{"count" => c} = di, acc) do
+    na =
+      case Enum.reduce(c, 0, fn {count, cards}, a -> a + count * length(cards) end) do
+        40 ->
+          acc
+
+        n ->
+          [constraint_invalid("deck size forty", from, "Deck size of #{n}") | acc]
+      end
+
+    verify_constraints(rest -- [{"deck size thirty", []}], di, na)
   end
 
-  defp verify_constraint({"no dupe", from}, %{"count" => c}) do
-    case Enum.filter(c, fn {k, _v} -> k != 1 end) do
-      [] ->
-        :valid
+  defp verify_constraints([{"deck size thirty", from} | rest], %{"count" => c} = di, acc) do
+    na =
+      case Enum.reduce(c, 0, fn {count, cards}, a -> a + count * length(cards) end) do
+        30 ->
+          acc
 
-      broken ->
-        constraint_invalid("no dupe", from, broken)
-    end
+        n ->
+          [constraint_invalid("deck size thirty", from, "Deck size of #{n}") | acc]
+      end
+
+    verify_constraints(rest -- [{"deck size thirty", []}], di, na)
   end
 
-  defp verify_constraint({"only odd", from}, %{"cost" => c}) do
-    case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 0 end) do
-      [] ->
-        :valid
+  defp verify_constraints([{"no dupe", from} | rest], %{"count" => c} = di, acc) do
+    na =
+      case Enum.filter(c, fn {k, _v} -> k != 1 end) do
+        [] ->
+          acc
 
-      broken ->
-        constraint_invalid("only odd", from, broken)
-    end
+        broken ->
+          [constraint_invalid("no dupe", from, broken) | acc]
+      end
+
+    verify_constraints(rest -- ["rarity count"], di, na)
   end
 
-  defp verify_constraint({"only even", from}, %{"cost" => c}) do
-    case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 1 end) do
-      [] ->
-        :valid
+  defp verify_constraints([{"only odd", from} | rest], %{"cost" => c} = di, acc) do
+    fa =
+      case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 0 end) do
+        [] ->
+          :valid
 
-      broken ->
-        constraint_invalid("only odd", from, broken)
-    end
+        broken ->
+          constraint_invalid("only odd", from, broken)
+      end
+
+    verify_constraints(rest, di, [fa | acc])
+  end
+
+  defp verify_constraints([{"only even", from} | rest], %{"cost" => c} = di, acc) do
+    fa =
+      case Enum.filter(c, fn {k, _v} -> rem(k, 2) == 1 end) do
+        [] ->
+          :valid
+
+        broken ->
+          constraint_invalid("only odd", from, broken)
+      end
+
+    verify_constraints(rest, di, [fa | acc])
   end
 
   defp verify_constraint({"no minion", from}, %{"type" => t}) do
@@ -289,7 +317,12 @@ defmodule HSCards.Constraints do
   defp constraint_invalid(constraint, from, by) do
     [
       constraint: constraint,
-      from: dbfs_to_card_list(from),
+      from:
+        case from do
+          [] -> ["base rules"]
+          s when is_binary(s) -> [s]
+          l when is_list(l) -> dbfs_to_card_list(l)
+        end,
       by:
         case by do
           s when is_binary(s) ->
