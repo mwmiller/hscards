@@ -555,12 +555,14 @@ defmodule HSCards do
     possible = Enum.random(md)
 
     case HSCards.Learned.similar_cards(possible, opts) do
-      {:ok, [card | _]} ->
+      {:ok, cards} ->
+        pick = Enum.find(cards, fn c -> c not in drop end)
+
         do_mutate(
-          deck,
+          %{deck | maindeck: deck.maindeck -- [possible]},
           opts,
           %{
-            add: [Map.merge(card, %{"count" => possible["count"]}) | add],
+            add: [Map.merge(pick, %{"count" => possible["count"]}) | add],
             drop: [possible | drop]
           },
           count - 1
