@@ -18,7 +18,7 @@ defmodule HSCards.Deck do
     proper = normalize(deck)
 
     vres =
-      deck.maindeck
+      deck
       |> gather_deck_info
       |> Constraints.verify()
 
@@ -28,9 +28,10 @@ defmodule HSCards.Deck do
     end
   end
 
-  defp gather_deck_info(deck) do
+  defp gather_deck_info(%{heroes: heroes} = deck) do
     keys = Constraints.keys()
-    do_deck_info(deck, keys, %{})
+    # Heroes has a special case, so we need to handle it separately
+    do_deck_info(deck.maindeck, keys, %{"heroes" => heroes})
   end
 
   defp do_deck_info([], _keys, info), do: info

@@ -38,7 +38,11 @@ defmodule HSCards.Constraints do
       text_match: "Your deck size and starting Health are 40.",
       constrained: ["count"]
     },
-    "base rules" => %{constrained: ["runeCost", "count", "rarity"]},
+    "tourist deck" => %{
+      text_match: "tourist",
+      constrained: ["cardClass", "set"]
+    },
+    "base rules" => %{constrained: ["runeCost", "count", "rarity", "cardClass", "classes"]},
     "none" => %{constrained: ["constraint"]}
   }
   @keys @constraints
@@ -79,7 +83,12 @@ defmodule HSCards.Constraints do
   def verify(deck_info)
 
   # Always apply these last so we can drop ones which are not needed
-  @base_checks [{"deck size thirty", []}, {"rarity count", []}, {"rune cost", []}]
+  @base_checks [
+    {"deck size thirty", []},
+    {"rarity count", []},
+    {"rune cost", []},
+    {"card classes", []}
+  ]
 
   def verify(%{"constraint" => cons} = di) do
     # It's important to do the base checks last, so we can drop them if not needed
@@ -166,6 +175,54 @@ defmodule HSCards.Constraints do
 
         broken ->
           [constraint_invalid("rarity count", from, broken) | acc]
+      end
+
+    verify_constraints(rest, di, na)
+  end
+
+  defp verify_constraints(
+         [{"tourist deck", [from]} | rest],
+         %{"heroes" => h, "cardClass" => c, "set" => s} = di,
+         acc
+       ) do
+    [%{"cardClass" => hero_class}] = h
+    dest = tourist_dest(from)
+    touring = c |> Map.get(dest, [])
+    toured = s |> Map.get("ISLAND_VACATION", [])
+
+    na =
+      case recon_classes(di, hero_class, [dest]) ++ (touring -- toured) do
+        [] ->
+          acc
+
+        broken ->
+          [constraint_invalid("tourist deck", [from], broken) | acc]
+      end
+
+    verify_constraints(rest -- [{"card classes", []}], di, na)
+  end
+
+  defp verify_constraints([{"tourist deck", from} | rest], di, acc) do
+    na = [constraint_invalid("single tourist", "base rules", from) | acc]
+
+    verify_constraints(rest -- [{"card classes", []}], di, na)
+  end
+
+  defp verify_constraints(
+         [{"card classes", from} | rest],
+         %{"heroes" => h} = di,
+         acc
+       ) do
+    # For now we'll let it crash if they have more than one hero class
+    [%{"cardClass" => hero_class}] = h
+
+    na =
+      case recon_classes(di, hero_class) do
+        [] ->
+          acc
+
+        broken ->
+          [constraint_invalid("card classes", from, broken) | acc]
       end
 
     verify_constraints(rest, di, na)
@@ -433,13 +490,52 @@ defmodule HSCards.Constraints do
           s when is_binary(s) ->
             [s]
 
-          l when is_list(l) ->
+          l when is_list(l) or is_map(l) ->
             Enum.reduce(l, %{}, fn
               {k, v}, a -> Map.put(a, k, dbfs_to_card_list(v))
               d, a -> Map.put(a, d, dbfs_to_card_list([d]))
             end)
         end
     ]
+  end
+
+  defp recon_classes(deck_info, hero_class, extra_classes \\ [])
+
+  defp recon_classes(%{"cardClass" => cc} = di, hero_class, extra_classes) do
+    rec =
+      di
+      |> Map.get("classes", %{})
+      |> Enum.reduce(cc, fn
+        {k, v}, a ->
+          Map.update(a, k, v, fn existing -> existing ++ v end)
+      end)
+
+    rec
+    |> Map.drop([hero_class, "NEUTRAL"] ++ extra_classes)
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.uniq()
+    |> then(fn
+      [] -> []
+      v -> v -- rec[hero_class]
+    end)
+  end
+
+  # I cannot imagine how the below would ever be called, but it is here for completeness
+  defp recon_classes(_, _, _), do: []
+
+  defp tourist_dest(dbf) do
+    # This is a bit of a hack, but it works for now
+    case HSCards.by_dbf(dbf) do
+      {:ok, %{"text" => t}} ->
+        case Regex.named_captures(~r/<b>(?<dest>.*) Tourist/, t) do
+          %{"dest" => dest} -> dest |> String.upcase() |> String.trim()
+          _ -> "UNKNOWN"
+        end
+
+      _ ->
+        "UNKNOWN"
+    end
   end
 
   defp dbfs_to_card_list(dbfs) do

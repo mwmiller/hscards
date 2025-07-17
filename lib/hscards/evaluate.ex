@@ -15,6 +15,10 @@ defmodule HSCards.Evaluate do
 
       constraint = HSCards.Constraints.for_card_text(norm_text)
 
+      if constraint != "none" do
+        IO.inspect({card, norm_text, constraint})
+      end
+
       [
         [
           dbfId: card["dbfId"],

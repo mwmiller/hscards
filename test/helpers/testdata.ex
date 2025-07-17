@@ -32,7 +32,11 @@ defmodule TestData do
       drekthar_secrets:
         "AAEBAR8Gj+MDj+QDu4oE25EE458EmKAEDKS5A4LQA4TiA5/sA6vsA6mNBKmfBOSfBLugBJmtBILmBq+SBwAA",
       ss_dk:
-        "AAECAYjaBQiH9gTHpAb23QbC6Aaq6gaSgwesiAeCmAcLuLEG/7oGkMsGi9wGpdwGnuIG4eoGgf0GloIHl4IHupUHAAED6N4Gx6QG9bMGx6QG97MGx6QGAAA="
+        "AAECAYjaBQiH9gTHpAb23QbC6Aaq6gaSgwesiAeCmAcLuLEG/7oGkMsGi9wGpdwGnuIG4eoGgf0GloIHl4IHupUHAAED6N4Gx6QG9bMGx6QG97MGx6QGAAA=",
+      kabal_mage:
+        "AAEBAf0EHsABngLuApUDtATmBLwIlQ/jEe0TuhbpugLXuwLYuwLZuwLbuwKwvAKHvQL9vQLnvwL8ngT9ngTnnwTonwTpnwTEoATx0wSa1ASF5gbqrAcAAAA=",
+      protoss_priest:
+        "AAECAa0GAoWfBNfSBg6tigTOwAaMwQaL1gbz4QaL9AaQ9AaY9Aaz9AbF+AbK+AbFlAe1lgfSrwcAAA=="
     },
     invalid: %{
       princes:
