@@ -501,7 +501,9 @@ defmodule HSCards.Constraints do
 
   defp recon_classes(deck_info, hero_class, extra_classes \\ [])
 
-  defp recon_classes(%{"cardClass" => cc} = di, hero_class, extra_classes) do
+  defp recon_classes(di, hero_class, extra_classes) do
+    cc = Map.get(di, "cardClass", [])
+
     rec =
       di
       |> Map.get("classes", %{})
@@ -520,9 +522,6 @@ defmodule HSCards.Constraints do
       v -> v -- rec[hero_class]
     end)
   end
-
-  # I cannot imagine how the below would ever be called, but it is here for completeness
-  defp recon_classes(_, _, _), do: []
 
   defp tourist_dest(dbf) do
     # This is a bit of a hack, but it works for now
