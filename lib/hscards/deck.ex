@@ -49,8 +49,8 @@ defmodule HSCards.Deck do
   end
 
   defp second_level_update(map, fk, sk, val) do
-    Map.update(map, fk, %{sk => [val]}, fn inside ->
-      Map.update(inside, sk, [val], fn p -> [val | p] end)
+    Map.update(map, fk, %{sk => MapSet.new([val])}, fn inside ->
+      Map.update(inside, sk, MapSet.new([val]), fn p -> MapSet.put(p, val) end)
     end)
   end
 
