@@ -24,3 +24,6 @@ hscards-*.tar
 
 # Don't assume DB is portable, ignore it.
 priv/db
+
+# Ignore DS_Store files, which are created by macOS in directories.
+.DS_Store
