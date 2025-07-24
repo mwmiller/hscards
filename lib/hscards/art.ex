@@ -12,13 +12,47 @@ defmodule HSCards.Art do
   """
   def styles, do: @styles
 
+  @doc """
+  Fill out the images for a given deck
+  """
+  def fill_deck_images(deck)
+
+  def fill_deck_images(deck) when is_binary(deck) do
+    deck
+    |> HSCards.from_deckstring()
+    |> fill_deck_images()
+  end
+
+  def fill_deck_images(deck) do
+    add_key_images([:maindeck, :sideboard, :heroes], deck)
+  end
+
+  defp add_key_images([], deck), do: deck
+
+  defp add_key_images([key | rest], deck) do
+    add_key_images(rest, Map.update!(deck, key, fn klist -> add_images(klist) end))
+  end
+
+  defp add_images(cards, acc \\ [])
+  defp add_images([], acc), do: acc
+
+  defp add_images([card | rest], acc) do
+    add_images(rest, [
+      Map.put(card, "images", %{
+        "tiles" => by_card(card, "tiles"),
+        "256x" => by_card(card, "256x")
+      })
+      | acc
+    ])
+  end
+
   def by_card(card, style \\ "tiles")
 
   def by_card(card, style) when style in @styles do
     case card do
-      %{id: id} when is_binary(id) -> file_by_id(id, style)
+      %{"id" => id} when is_binary(id) -> file_by_id(id, style)
       id when is_binary(id) -> file_by_id(id, style)
-      _ -> raise ArgumentError, "Invalid card format: #{inspect(card)}"
+      _ -> file_by_id("default", style)
     end
   end
 
