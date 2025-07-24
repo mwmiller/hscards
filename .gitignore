@@ -27,3 +27,6 @@ priv/db
 
 # Ignore DS_Store files, which are created by macOS in directories.
 .DS_Store
+
+# Ignore Elixir LS nonsense-- I really hope this goes away with the next-gen LSP
+.elixir_ls/
