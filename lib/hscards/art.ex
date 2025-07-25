@@ -37,15 +37,26 @@ defmodule HSCards.Art do
   defp add_images([], acc), do: acc
 
   defp add_images([card | rest], acc) do
-    add_images(rest, [
-      Map.put(card, "images", %{
-        "tiles" => by_card(card, "tiles"),
-        "256x" => by_card(card, "256x")
-      })
-      | acc
-    ])
+    add_images(rest, [Map.put(card, "images", card_images(card)) | acc])
   end
 
+  defp card_images(styles \\ @styles, card, acc \\ %{})
+  defp card_images([], _card, acc), do: acc
+
+  defp card_images([style | rest], card, acc) do
+    card_images(rest, card, Map.put(acc, style, card |> by_card(style) |> data_uri()))
+  end
+
+  defp data_uri(data) do
+    "data:image/jpeg;base64," <> Base.encode64(data)
+  end
+
+  @doc """
+  Get the art for a card in a specific style.
+  If the card is not found, it will return the default art.
+  If the art is not found, it will attempt to fetch it from the web,
+  to be available on the next request.
+  """
   def by_card(card, style \\ "tiles")
 
   def by_card(card, style) when style in @styles do
