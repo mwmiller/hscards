@@ -5,7 +5,6 @@ defmodule HSCards.Repo.Migrations.ClassyMechanicsCost do
     alter table(:cards) do
       add(:mechanic, :string, default: "")
       add(:class, :string, default: "")
-      add(:class, :string, default: "")
       add(:cost, :integer)
     end
 
