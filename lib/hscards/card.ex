@@ -3,6 +3,7 @@ defmodule HSCards.Card do
 
   schema "cards" do
     field(:dbfId, :integer)
+    field(:hs_id, :string)
     field(:name, :string)
     field(:artist, :string)
     field(:flavor, :string)

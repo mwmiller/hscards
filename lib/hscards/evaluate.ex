@@ -19,6 +19,7 @@ defmodule HSCards.Evaluate do
         [
           dbfId: card["dbfId"],
           name: card["name"],
+          hs_id: card["id"],
           rarity: card["rarity"],
           set: card["set"],
           text: norm_text,
