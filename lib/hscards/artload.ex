@@ -87,15 +87,46 @@ defmodule HSCards.ArtLoad do
     end
   end
 
-  def load_art(id) do
-    @styles
-    |> Map.keys()
-    |> Enum.reduce([hs_id: id], fn style, a -> [{style, fetch_art(id, style)} | a] end)
-    |> then(fn k ->
-      HSCards.Repo.insert(struct!(HSCards.Art, k),
-        on_conflict: :replace_all
-      )
+  def refresh_collectibles do
+    Logger.info("Refreshing collectible art")
+
+    {:ambiguous, collectibles} = HSCards.DB.find(%{collectible: true})
+
+    # Broadway or even GenStage seems like overkill for this
+    collectibles
+    |> Enum.shuffle()
+    |> Enum.chunk_every(128)
+    |> Enum.reduce(0, fn chunk, a ->
+      Process.sleep(503)
+
+      chunk
+      |> Enum.map(fn c -> c["id"] end)
+      |> load_art([])
+
+      # Avoid overwhelming the server
+      total = a + length(chunk)
+      Logger.info("Processed #{length(chunk)} cards, total processed: #{total}")
+      total
     end)
+
+    Logger.info("Collectible art refresh complete")
+  end
+
+  defp load_art(id) when is_binary(id) do
+    load_art([id], [])
+  end
+
+  defp load_art([], acc) do
+    HSCards.Repo.insert_all(HSCards.Art, acc, on_conflict: :replace_all)
+  end
+
+  defp load_art([id | rest], acc) do
+    qable =
+      @styles
+      |> Map.keys()
+      |> Enum.reduce([hs_id: id], fn style, a -> [{style, fetch_art(id, style)} | a] end)
+
+    load_art(rest, [qable | acc])
   end
 
   defp data_uri(data) do
