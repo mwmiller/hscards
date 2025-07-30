@@ -65,9 +65,15 @@ defmodule HSCards.ArtLoad do
   """
   def by_card(card) do
     case card do
-      %{"id" => id} when is_binary(id) -> by_id(id)
-      id when is_binary(id) -> by_id(id)
-      _ -> @default_art
+      %{"id" => id} when is_binary(id) ->
+        by_id(id)
+
+      id when is_binary(id) ->
+        by_id(id)
+
+      _ ->
+        Logger.error("Invalid card format for art load: #{inspect(card)}")
+        @default_art
     end
   end
 
@@ -82,6 +88,7 @@ defmodule HSCards.ArtLoad do
         %{"tile" => tile, "full" => full}
 
       _ ->
+        Logger.info("Art not found for card #{id}, fetching from web")
         Task.start(fn -> load_art(id) end)
         @default_art
     end

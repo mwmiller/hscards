@@ -153,6 +153,8 @@ defmodule HSCards.DB do
   """
   def update_from_sources do
     with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
+      Logger.info("Fetched cards from #{@cards_endpoint}")
+
       json
       |> Evaluate.json_to_entries()
       |> Enum.chunk_every(2048)
@@ -160,11 +162,15 @@ defmodule HSCards.DB do
         HSCards.Repo.insert_all(HSCards.Card, chunk, on_conflict: :replace_all)
       end)
 
+      Logger.info("Inserted cards into the database")
+
       Learned.embeddings_map()
       |> Enum.chunk_every(2048)
       |> Enum.each(fn chunk ->
         HSCards.Repo.insert_all(HSCards.Embedding, chunk, on_conflict: :replace_all)
       end)
+
+      Logger.info("Inserted embeddings into the database")
 
       :ok
     else
