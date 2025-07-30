@@ -5,7 +5,7 @@ defmodule HSCards.DB do
 
   import Ecto.Query
   require Logger
-  alias HSCards.{Evaluate, Learned}
+  alias HSCards.{Evaluate, Learned, Images}
 
   @default_options [string_match: :fuzzy, query_mode: :and]
   @doc """
@@ -149,9 +149,11 @@ defmodule HSCards.DB do
 
   @cards_endpoint "https://api.hearthstonejson.com/v1/latest/enUS/cards.json"
   @doc """
-    Fetches the latest cards from the Hearthstone JSON API and updates the local database.
+    Updates the various database sources.
   """
-  def update_from_sources do
+  def update_from_sources() do
+    Logger.info("Updating database from sources")
+
     with {:ok, {{_, 200, _}, _headers, json}} <- :httpc.request(@cards_endpoint) do
       Logger.info("Fetched cards from #{@cards_endpoint}")
 
@@ -163,20 +165,19 @@ defmodule HSCards.DB do
       end)
 
       Logger.info("Inserted cards into the database")
-
-      Learned.embeddings_map()
-      |> Enum.chunk_every(2048)
-      |> Enum.each(fn chunk ->
-        HSCards.Repo.insert_all(HSCards.Embedding, chunk, on_conflict: :replace_all)
-      end)
-
-      Logger.info("Inserted embeddings into the database")
-
-      :ok
     else
       err ->
         Logger.error("Failed to fetch cards: #{inspect(err)}")
         :error
     end
+
+    # Someday this will move to more configurability
+    other_opts = %{collectible: true}
+
+    Learned.update_embeddings(other_opts)
+
+    Images.update_from_sources(other_opts)
+
+    :ok
   end
 end

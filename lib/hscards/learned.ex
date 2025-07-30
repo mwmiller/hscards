@@ -3,6 +3,7 @@ defmodule HSCards.Learned do
   Card learnings
   """
 
+  require Logger
   import Ecto.Query
   import SqliteVec.Ecto.Query
 
@@ -131,11 +132,26 @@ defmodule HSCards.Learned do
   @embedding_size 512
 
   @doc """
-  Generate the embeddings map for all known collectible cards.
-  This is mainly useful for the `HSCards.DB` to store them for later use
+  Update the embeddings table with the latest embeddings.
+  This is mainly useful after the cards have been updated.
   """
-  def embeddings_map() do
-    {:ambiguous, cards} = HSCards.DB.find(%{collectible: true})
+  def update_embeddings(which) do
+    Logger.info("Updating embeddings table with latest embeddings for #{inspect(which)}")
+
+    embeddings_map(which)
+    |> Enum.chunk_every(2048)
+    |> Enum.reduce(0, fn chunk, a ->
+      HSCards.Repo.insert_all(HSCards.Embedding, chunk, on_conflict: :replace_all)
+      na = a + length(chunk)
+      Logger.info("Processed #{length(chunk)} embeddings, total processed: #{na}")
+      na
+    end)
+
+    Logger.info("Embeddings update complete")
+  end
+
+  defp embeddings_map(which) do
+    {:ambiguous, cards} = HSCards.DB.find(which)
 
     {filled, defaults} =
       cards

@@ -1,4 +1,4 @@
-defmodule HSCards.ArtLoad do
+defmodule HSCards.Images do
   # There is more than one way to get the full art URL for a card, even
   # ignoring localization.
   # We're going to focus on what works for us and let the rest sort itself out.
@@ -33,28 +33,28 @@ defmodule HSCards.ArtLoad do
   @doc """
   Fill out the images for a given deck
   """
-  def fill_deck_images(deck)
+  def fill_deck(deck)
 
-  def fill_deck_images(deck) when is_binary(deck) do
+  def fill_deck(deck) when is_binary(deck) do
     deck
     |> HSCards.from_deckstring()
-    |> fill_deck_images()
+    |> fill_deck()
   end
 
-  def fill_deck_images(deck) do
-    add_key_images([:maindeck, :sideboard, :heroes], deck)
+  def fill_deck(deck) do
+    add_key([:maindeck, :sideboard, :heroes], deck)
   end
 
-  defp add_key_images([], deck), do: deck
+  defp add_key([], deck), do: deck
 
-  defp add_key_images([key | rest], deck) do
-    add_key_images(rest, Map.update!(deck, key, fn klist -> add_images(klist) end))
+  defp add_key([key | rest], deck) do
+    add_key(rest, Map.update!(deck, key, fn klist -> add(klist) end))
   end
 
-  defp add_images(cards, acc \\ [])
+  defp add(cards, acc \\ [])
 
-  defp add_images([card | rest], acc) do
-    add_images(rest, [Map.put(card, :art, by_card(card)) | acc])
+  defp add([card | rest], acc) do
+    add(rest, [Map.put(card, :art, by_card(card)) | acc])
   end
 
   @doc """
@@ -94,13 +94,18 @@ defmodule HSCards.ArtLoad do
     end
   end
 
-  def refresh_collectibles do
-    Logger.info("Refreshing collectible art")
+  def update_from_sources(which) do
+    todo =
+      case HSCards.DB.find(which) do
+        {:ok, card} -> [card]
+        {:ambiguous, cards} -> cards
+        _ -> []
+      end
 
-    {:ambiguous, collectibles} = HSCards.DB.find(%{collectible: true})
+    Logger.info("Refreshing images #{inspect(which)}: #{length(todo)} cards to process")
 
     # Broadway or even GenStage seems like overkill for this
-    collectibles
+    todo
     |> Enum.shuffle()
     |> Enum.chunk_every(128)
     |> Enum.reduce(0, fn chunk, a ->
@@ -116,7 +121,7 @@ defmodule HSCards.ArtLoad do
       total
     end)
 
-    Logger.info("Collectible art refresh complete")
+    Logger.info("Image refresh complete")
   end
 
   defp load_art(id) when is_binary(id) do
