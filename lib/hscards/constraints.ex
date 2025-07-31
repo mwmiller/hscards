@@ -40,7 +40,7 @@ defmodule HSCards.Constraints do
       constrained: ["count"]
     },
     "tourist deck" => %{
-      text_match: "tourist",
+      text_match: "Tourist",
       constrained: ["cardClass", "set"]
     },
     "base rules" => %{constrained: ["runeCost", "count", "rarity", "cardClass", "classes"]},
