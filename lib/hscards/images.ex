@@ -94,15 +94,8 @@ defmodule HSCards.Images do
     end
   end
 
-  def update_from_sources(which) do
-    todo =
-      case HSCards.DB.find(which) do
-        {:ok, card} -> [card]
-        {:ambiguous, cards} -> cards
-        _ -> []
-      end
-
-    Logger.info("Refreshing images #{inspect(which)}: #{length(todo)} cards to process")
+  def update_from_sources(todo) do
+    Logger.info("Refreshing images: #{length(todo)} cards to process")
 
     # Broadway or even GenStage seems like overkill for this
     todo

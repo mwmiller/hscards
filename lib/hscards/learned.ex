@@ -135,10 +135,11 @@ defmodule HSCards.Learned do
   Update the embeddings table with the latest embeddings.
   This is mainly useful after the cards have been updated.
   """
-  def update_embeddings(which) do
-    Logger.info("Updating embeddings table with latest embeddings for #{inspect(which)}")
+  def update_embeddings(cards) do
+    Logger.info("Updating embeddings table with latest embeddings")
 
-    embeddings_map(which)
+    cards
+    |> embeddings_map()
     |> Enum.chunk_every(2048)
     |> Enum.reduce(0, fn chunk, a ->
       HSCards.Repo.insert_all(HSCards.Embedding, chunk, on_conflict: :replace_all)
@@ -150,9 +151,7 @@ defmodule HSCards.Learned do
     Logger.info("Embeddings update complete")
   end
 
-  defp embeddings_map(which) do
-    {:ambiguous, cards} = HSCards.DB.find(which)
-
+  defp embeddings_map(cards) do
     {filled, defaults} =
       cards
       |> proper_keys

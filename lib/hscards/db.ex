@@ -172,12 +172,22 @@ defmodule HSCards.DB do
     end
 
     # Someday this will move to more configurability
-    other_opts = %{collectible: true}
+    which = %{collectible: true}
 
-    Learned.update_embeddings(other_opts)
+    cards =
+      case HSCards.DB.find(which) do
+        {:ok, card} -> [card]
+        {:ambiguous, cards} -> cards
+        _ -> []
+      end
 
-    Images.update_from_sources(other_opts)
+    Logger.info("Preparing to update #{inspect(which)} cards embeddings and art...")
 
+    Learned.update_embeddings(cards)
+
+    Images.update_from_sources(cards)
+
+    # Above purely for side-effects. :(
     :ok
   end
 end
