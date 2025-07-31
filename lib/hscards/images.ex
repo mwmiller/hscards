@@ -135,11 +135,8 @@ defmodule HSCards.Images do
   end
 
   defp data_uri(data) do
-    data
+    ["data:image/jpeg;base64," | data]
     |> IO.iodata_to_binary()
-    |> then(fn b ->
-      "data:image/jpeg;base64," <> Base.encode64(b)
-    end)
   end
 
   defp fetch_art(id, style) do
